@@ -1,0 +1,279 @@
+/* Paleta institucional del SENA (verde, azul oscuro y oro) sobre fondo blanco. */
+:root{
+  --sena-verde:       #39A900;
+  --sena-verde-oscuro:#007832;
+  --sena-azul:        #00304D;
+  --sena-oro:         #FDC300;
+
+  --bg:       #FFFFFF;
+  --surface:  #FFFFFF;
+  --surface-2:#F2F7EE;
+  --border:   #DCE6D3;
+  --text:     #14201A;
+  --text-muted:#5C6B5C;
+
+  --accent:       var(--sena-verde);
+  --accent-dark:  var(--sena-verde-oscuro);
+  --accent-contrast:#FFFFFF;
+
+  --status-in:    var(--sena-verde-oscuro);
+  --status-in-bg: #E3F3DC;
+  --status-out:   #9A6A00;
+  --status-out-bg:#FBF0D2;
+
+  --danger:    #B3261E;
+  --danger-bg: #FBE6E4;
+
+  --shadow: 0 1px 2px rgba(0,48,77,0.06), 0 10px 26px -14px rgba(0,48,77,0.22);
+  --radius: 14px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; height:100%; }
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+h1,h2,h3{
+  font-family:"Archivo", system-ui, sans-serif;
+  font-weight:700;
+  margin:0;
+}
+.mono{ font-family:"JetBrains Mono", ui-monospace, monospace; }
+a{ color:var(--accent-dark); }
+button{ font-family:inherit; }
+input, select{ font-family:inherit; }
+
+/* ---------- barra superior + navegación admin ----------
+   .site-header agrupa la barra azul y las pestañas para que ambas queden
+   fijas arriba al hacer scroll — así no se pierde la navegación cuando
+   la página tiene tablas largas más abajo. */
+.site-header{ position:sticky; top:0; z-index:20; }
+.topbar{
+  background:var(--sena-azul);
+  color:#fff;
+  padding:16px 24px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.topbar .brand{ display:flex; align-items:center; gap:12px; }
+.brand-mark{
+  width:44px; height:44px; border-radius:10px; background:#fff;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  padding:5px; box-shadow:0 1px 3px rgba(0,0,0,0.15);
+}
+.brand-mark img{ width:100%; height:100%; object-fit:contain; display:block; }
+.brand-text h1{ font-size:18px; line-height:1.2; color:#fff; }
+.brand-text .event-name{ font-size:13px; color:#cfe8d8; margin-top:2px; display:block; }
+.stat-pills{ display:flex; gap:8px; flex-wrap:wrap; }
+.pill{
+  display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px;
+  font-size:13px; font-weight:600; background:rgba(255,255,255,0.12); color:#fff;
+}
+.pill .dot{ width:8px; height:8px; border-radius:50%; }
+.pill.in .dot{ background:#8be08a; }
+.pill.out .dot{ background:var(--sena-oro); }
+.pill.total .dot{ background:#cfe8d8; }
+.pill .num{ font-family:"JetBrains Mono",monospace; }
+
+.tabs{
+  display:flex; gap:4px; padding:0 20px; background:var(--surface);
+  border-bottom:2px solid var(--sena-verde); overflow-x:auto;
+}
+.tab-btn{
+  border:none; background:none; padding:12px 16px; font-size:14px; font-weight:600; color:var(--text-muted);
+  cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; text-decoration:none; display:inline-block;
+}
+.tab-btn:hover{ color:var(--accent-dark); }
+.tab-btn.active{ color:var(--accent-dark); border-bottom-color:var(--sena-verde); }
+
+/* flex:1 hace que el contenido crezca para llenar el espacio libre, así
+   el pie de página (o el final del panel, en las páginas que no tienen
+   pie) siempre queda pegado abajo del todo — nunca flotando con un
+   espacio en blanco debajo, ni cuando la página tiene poco contenido. */
+.content{ padding:28px 20px 60px; width:100%; flex:1 0 auto; }
+.content-inner{ max-width:880px; margin:0 auto; }
+.content-inner.wide{ max-width:1320px; }
+/* Centra el contenido tanto vertical como horizontalmente dentro del
+   espacio disponible — para pantallas "portal" de una sola tarjeta
+   (ingreso.php) que no deben quedar pegadas arriba con todo el resto en
+   blanco debajo. */
+.content-center{ display:flex; align-items:center; justify-content:center; }
+.content-center .content-inner{ width:100%; }
+
+/* ---------- tarjetas / cards ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:24px; box-shadow:var(--shadow);
+}
+.card + .card{ margin-top:20px; }
+/* Tarjeta que se ajusta al ancho de su contenido en vez de estirarse a
+   todo el ancho del panel — para las que solo envuelven una tabla
+   compacta (ver .table-wrap--compact más abajo). */
+.card--fit{ width:fit-content; max-width:100%; }
+.section-title{ font-size:20px; margin-bottom:4px; }
+.section-sub{ color:var(--text-muted); font-size:14px; margin:4px 0 20px; }
+
+/* ---------- formularios ---------- */
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-grid .full{ grid-column:1 / -1; }
+@media (max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
+label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
+label .opt{ font-weight:400; color:var(--text-muted); }
+input[type=text], input[type=email], input[type=search]{
+  width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+  background:#fff; color:var(--text); font-size:15px;
+}
+input:focus, select:focus, button:focus-visible{
+  outline:2px solid var(--sena-verde); outline-offset:1px;
+}
+.field-error{ color:var(--danger); font-size:12.5px; margin-top:5px; }
+.form-actions{ margin-top:22px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+.btn{
+  display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:9px;
+  border:1px solid transparent; font-size:14.5px; font-weight:600; cursor:pointer; transition:filter .1s;
+  text-decoration:none;
+}
+.btn:hover{ filter:brightness(0.95); }
+.btn-primary{ background:var(--sena-verde); color:#fff; }
+.btn-outline{ background:transparent; border-color:var(--border); color:var(--text); }
+.btn-out{ background:var(--sena-oro); color:#3a2c00; }
+.btn:disabled{ opacity:0.5; cursor:not-allowed; }
+.btn-sm{ padding:6px 12px; font-size:13px; }
+.btn-block{ width:100%; justify-content:center; padding:14px 18px; font-size:16px; }
+.btn-lg{ padding:18px 22px; font-size:17px; border-radius:12px; }
+
+/* ---------- portal público (ingreso.php) ---------- */
+.portal-card{ padding:48px 44px; }
+@media (max-width:520px){ .portal-card{ padding:32px 24px; } }
+.portal-card .section-title{ font-size:24px; }
+.portal-card .section-sub{ font-size:15px; }
+.portal-options{ display:flex; flex-direction:column; gap:18px; margin:32px 0 6px; }
+.portal-hint{ margin-top:28px; padding-top:24px; border-top:1px solid var(--border); }
+
+.banner{ padding:12px 16px; border-radius:10px; font-size:14px; margin-bottom:18px; }
+.banner.info{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
+.banner.error{ background:var(--danger-bg); color:var(--danger); }
+.banner.success{ background:var(--status-in-bg); color:var(--status-in); }
+.banner.warning{ background:var(--status-out-bg); color:var(--status-out); }
+
+/* ---------- tarjeta / carné con QR ---------- */
+.badge-wrap{ display:flex; justify-content:center; padding:12px 0 8px; }
+.badge{
+  width:340px; border-radius:18px; overflow:hidden; background:var(--surface);
+  border:1px solid var(--border); box-shadow:var(--shadow);
+}
+.badge-head{
+  background:linear-gradient(135deg, var(--sena-verde), var(--sena-verde-oscuro));
+  color:#fff; padding:14px 18px;
+}
+.badge-head .org{ font-size:11px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.95; font-weight:700; }
+.badge-head .ev{ font-family:"Archivo",sans-serif; font-weight:800; font-size:16px; margin-top:2px; }
+.badge-body{ padding:20px 18px; text-align:center; }
+.badge-qr{ display:flex; justify-content:center; margin-bottom:14px; }
+.badge-qr img, .badge-qr canvas{ border-radius:8px; }
+.badge-name{ font-family:"Archivo",sans-serif; font-weight:700; font-size:18px; line-height:1.25; }
+.badge-cedula{ font-family:"JetBrains Mono",monospace; font-size:14px; color:var(--text-muted); margin-top:4px; }
+.badge-empresa{ font-size:12.5px; color:var(--text-muted); margin-top:6px; }
+.badge-foot{
+  border-top:1px dashed var(--border); padding:10px 18px; font-size:11px; color:var(--text-muted);
+  display:flex; justify-content:space-between;
+}
+
+/* ---------- control de acceso (control.php) ----------
+   Entrada y salida en dos columnas: cada una lleva su formulario y,
+   justo debajo, su propia tabla de estado (quién está adentro / quién
+   ya salió). En pantallas angostas se apilan en una sola columna. */
+/* display:grid (con align-items en su valor por defecto, stretch) hace
+   que las dos tarjetas de una misma fila —los formularios entre sí, y
+   las tablas de estado entre sí— midan siempre lo mismo de alto, sin
+   importar que un texto sea más largo que el otro. */
+.control-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+/* .card + .card agrega margin-top:20px pensando en tarjetas apiladas —
+   dentro de esta rejilla esas tarjetas son vecinas en el HTML pero no
+   están una debajo de la otra, así que ese margen sobra (el gap de la
+   rejilla ya separa filas y columnas) y hacía que la tarjeta más a la
+   derecha de cada fila quedara más baja que su vecina. */
+.control-grid > .card{ margin-top:0; }
+@media (max-width:860px){ .control-grid{ grid-template-columns:1fr; } }
+
+.lookup-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.lookup-row input{ flex:1; min-width:200px; font-size:20px; padding:14px; font-family:"JetBrains Mono",monospace; letter-spacing:1px; }
+.scan-area{ margin-top:16px; }
+.scan-video-wrap{ position:relative; max-width:360px; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
+.scan-video-wrap video{ width:100%; display:block; }
+.scan-frame{ position:absolute; inset:12%; border:3px solid var(--sena-verde); border-radius:10px; box-shadow:0 0 0 999px rgba(0,48,77,0.35); pointer-events:none; }
+
+.attendee-panel{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+.attendee-info{ flex:1; min-width:220px; }
+.attendee-info .name{ font-size:19px; font-weight:700; font-family:"Archivo",sans-serif; }
+.attendee-info .meta{ color:var(--text-muted); font-size:14px; margin-top:4px; }
+.status-chip{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px;
+  font-size:12.5px; font-weight:700; margin-top:10px;
+}
+.status-chip.in{ background:var(--status-in-bg); color:var(--status-in); }
+.status-chip.out{ background:var(--status-out-bg); color:var(--status-out); }
+
+.history-list{ margin-top:16px; border-top:1px solid var(--border); padding-top:12px; }
+.history-row{ display:flex; justify-content:space-between; font-size:13px; padding:5px 0; color:var(--text-muted); }
+.history-row .type-in{ color:var(--status-in); font-weight:600; }
+.history-row .type-out{ color:var(--status-out); font-weight:600; }
+
+.activity-feed{ margin-top:14px; }
+.activity-row{
+  display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);
+  font-size:13.5px;
+}
+.activity-row:last-child{ border-bottom:none; }
+.activity-row .who{ font-weight:600; }
+.activity-row .when{ color:var(--text-muted); font-family:"JetBrains Mono",monospace; font-size:12px; }
+
+/* ---------- tablas ----------
+   .table-wrap envuelve cualquier tabla (permite scroll horizontal en
+   pantallas angostas). Por defecto la tabla ocupa todo el ancho del
+   contenedor — así es como deben verse las tablas grandes con muchas
+   columnas (asistentes.php, historial.php).
+   Las tablas de estado en columnas (por ejemplo las de "quién está
+   adentro/afuera" en control.php) usan la clase modificadora
+   .table-wrap--compact, con alto fijo y scroll propio — ver el bloque
+   de abajo. */
+.table-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
+.table-wrap table{ width:100%; border-collapse:collapse; min-width:640px; }
+.table-wrap th, .table-wrap td{ text-align:left; padding:11px 14px; font-size:13.5px; border-bottom:1px solid var(--border); }
+.table-wrap th{ color:var(--text-muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.4px; background:var(--surface-2); }
+.table-wrap tr:last-child td{ border-bottom:none; }
+.table-wrap td.cedula-cell{ font-family:"JetBrains Mono",monospace; }
+
+/* Las dos tablas de estado de control.php (quién está adentro / quién ya
+   salió) van en recuadros de ALTO FIJO, iguales entre sí sin importar
+   cuántas filas tenga cada una — si no caben todas, se hace scroll
+   adentro del recuadro (el encabezado queda fijo arriba mientras se
+   hace scroll) en vez de que la tarjeta crezca y quede descuadrada con
+   la del otro lado. */
+.table-wrap--compact{ height:280px; overflow-y:auto; }
+.table-wrap--compact table{ width:100%; min-width:0; }
+.table-wrap--compact th, .table-wrap--compact td{ padding:12px 20px; font-size:15px; }
+.table-wrap--compact th{ font-size:12.5px; position:sticky; top:0; }
+
+.empty-state{ text-align:center; padding:40px 20px; color:var(--text-muted); }
+
+/* ---------- pie de página de las pantallas públicas ---------- */
+.footer-public{
+  background:var(--sena-azul); color:#cfe8d8; padding:22px 24px; margin-top:48px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.footer-public .brand{ display:flex; align-items:center; gap:12px; }
+.brand-text-sm{ font-size:12.5px; line-height:1.6; color:#cfe8d8; }
+.footer-public .footer-right{ text-align:right; }
+
+@media print{
+  body *{ visibility:hidden; }
+  .card-print, .card-print *{ visibility:visible; }
+  .card-print{ position:fixed; top:0; left:0; right:0; margin:40px auto; box-shadow:none; }
+}
