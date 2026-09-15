@@ -39,8 +39,12 @@ $verSalida = puedeRegistrar('salida');
 
 $adentro = listarPorEstado($conn, 'dentro');
 $fuera = listarPorEstado($conn, 'fuera');
-$avisos = listarAvisos($conn, 6);
-$movimientos = historialGeneral($conn, '', 50);
+$admin = esAdmin();
+// El administrador ve abajo el historial reciente y los avisos; el
+// portero, solo lo que él mismo registró hoy.
+$avisos = $admin ? listarAvisos($conn, 6) : [];
+$movimientos = $admin ? historialGeneral($conn, '', 50) : [];
+$misMovimientos = $admin ? [] : movimientosDePortero($conn, $usuario['id']);
 
 $activeTab = 'control';
 $wide = true;
@@ -100,7 +104,7 @@ require __DIR__ . '/includes/layout_top.php';
       <?php if ($resultadoEntrada): ?>
         <div class="banner <?= h($resultadoEntrada['nivel']) ?>" style="margin-top:18px;">
           <?= h($resultadoEntrada['mensaje']) ?>
-          <?php if (!$resultadoEntrada['asistente']): ?> <a href="registro_admin.php">Registrar esta cédula</a>.<?php endif; ?>
+          <?php if (!$resultadoEntrada['asistente']): ?> <a href="<?= $admin ? 'registro_admin.php' : 'registro.php' ?>">Registrar esta cédula</a>.<?php endif; ?>
         </div>
         <?php if ($resultadoEntrada['asistente']): $a = $resultadoEntrada['asistente']; $enDentro = $a['estado'] === 'dentro'; ?>
           <div class="attendee-panel" style="margin-top:8px;">
@@ -141,7 +145,7 @@ require __DIR__ . '/includes/layout_top.php';
       <?php if ($resultadoSalida): ?>
         <div class="banner <?= h($resultadoSalida['nivel']) ?>" style="margin-top:18px;">
           <?= h($resultadoSalida['mensaje']) ?>
-          <?php if (!$resultadoSalida['asistente']): ?> <a href="registro_admin.php">Registrar esta cédula</a>.<?php endif; ?>
+          <?php if (!$resultadoSalida['asistente']): ?> <a href="<?= $admin ? 'registro_admin.php' : 'registro.php' ?>">Registrar esta cédula</a>.<?php endif; ?>
         </div>
         <?php if ($resultadoSalida['asistente']): $a = $resultadoSalida['asistente']; $enDentro = $a['estado'] === 'dentro'; ?>
           <div class="attendee-panel" style="margin-top:8px;">
@@ -202,6 +206,7 @@ require __DIR__ . '/includes/layout_top.php';
 
 </div>
 
+<?php if ($admin): ?>
 <div class="card" style="margin-top:20px;">
   <h2 class="section-title">Reportes e historial</h2>
   <p class="section-sub">Los <?= count($movimientos) ?> movimientos más recientes de entrada y salida. <a href="historial.php">Ver historial completo y buscar →</a></p>
@@ -245,6 +250,23 @@ require __DIR__ . '/includes/layout_top.php';
     <?php endif; ?>
   </div>
 </div>
+<?php else: ?>
+<div class="card" style="margin-top:20px;">
+  <h2 class="section-title" style="font-size:16px;">Tus registros de hoy</h2>
+  <?php if (!$misMovimientos): ?>
+    <div class="empty-state" style="padding:16px;">Todavía no has registrado entradas ni salidas hoy.</div>
+  <?php else: ?>
+    <div class="activity-feed">
+      <?php foreach ($misMovimientos as $m): ?>
+        <div class="activity-row">
+          <span class="who"><?= h($m['nombre']) ?> — <span class="<?= $m['tipo'] === 'entrada' ? 'type-in' : 'type-out' ?>"><?= $m['tipo'] === 'entrada' ? 'Entrada' : 'Salida' ?></span></span>
+          <span class="when"><?= date('H:i', strtotime($m['fecha'])) ?></span>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
 
 <script src="assets/js/jsQR.js?v=<?= assetVersion('assets/js/jsQR.js') ?>"></script>
 <?php require __DIR__ . '/includes/layout_bottom.php'; ?>

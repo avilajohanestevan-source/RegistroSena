@@ -1,17 +1,19 @@
 <?php
 /**
- * Pestaña Portería: códigos de registro para el personal de portería y
- * lista de porteros. Cada código se crea para una persona, se le envía
- * por correo (o se le comparte a mano) y sirve para crear una sola
- * cuenta en index.php, donde se valida contra la tabla codigos_porteria.
+ * Pestaña Portería (solo administrador): códigos de registro para el
+ * personal y lista de cuentas. Cada código se crea para una persona con
+ * su correo y el rol que tendrá (portero o administrador), se le envía
+ * por correo automáticamente y sirve para crear una sola cuenta en
+ * index.php, donde se valida contra la tabla codigos_porteria.
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 require_once __DIR__ . '/includes/codigos_porteria.php';
 require_once __DIR__ . '/includes/mailer.php';
 
 $usuario = usuarioActual();
 $evento = nombreEvento($conn);
-$valores = ['nombre' => '', 'correo' => '', 'cedula' => '', 'enviar' => '1'];
+$roles = rolesUsuario();
+$valores = ['nombre' => '', 'correo' => '', 'cedula' => '', 'rol' => 'portero'];
 $errores = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -22,26 +24,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'nombre' => trim($_POST['nombre'] ?? ''),
             'correo' => trim($_POST['correo'] ?? ''),
             'cedula' => soloDigitos($_POST['cedula'] ?? ''),
-            'enviar' => isset($_POST['enviar']) ? '1' : '',
+            'rol'    => array_key_exists($_POST['rol'] ?? '', $roles) ? $_POST['rol'] : 'portero',
         ];
         if (mb_strlen($valores['nombre']) < 3) {
             $errores['nombre'] = 'Escribe el nombre de la persona.';
         }
-        if ($valores['correo'] !== '' && !filter_var($valores['correo'], FILTER_VALIDATE_EMAIL)) {
-            $errores['correo'] = 'Escribe un correo electrónico válido.';
-        } elseif ($valores['enviar'] && $valores['correo'] === '') {
-            $errores['correo'] = 'Escribe el correo para enviarle el código.';
+        if (!filter_var($valores['correo'], FILTER_VALIDATE_EMAIL)) {
+            $errores['correo'] = 'Escribe el correo al que se le enviará el código.';
         }
         if ($valores['cedula'] !== '' && mb_strlen($valores['cedula']) < 5) {
             $errores['cedula'] = 'Escribe una cédula válida o déjala vacía.';
         } elseif ($valores['cedula'] !== '' && buscarUsuario($conn, $valores['cedula'])) {
-            $errores['cedula'] = 'Ya existe una cuenta de portería con esta cédula.';
+            $errores['cedula'] = 'Ya existe una cuenta con esta cédula.';
         }
 
         if (!$errores) {
-            $codigo = crearCodigoPorteria($conn, $valores['nombre'], $valores['correo'], $valores['cedula'], $usuario['id']);
+            $codigo = crearCodigoPorteria($conn, $valores['nombre'], $valores['correo'], $valores['cedula'], $valores['rol'], $usuario['id']);
+            // El código se envía siempre al correo (si el correo está configurado).
             $correo = 'no';
-            if ($valores['enviar']) {
+            if (EMAIL_HABILITADO) {
                 [$ok] = enviarCodigoPorteria($codigo, $evento, urlRegistroPorteria($codigo));
                 if ($ok) {
                     marcarCodigoEnviado($conn, $codigo['id']);
@@ -79,11 +80,11 @@ $aviso = null;
 $correoGet = $_GET['correo'] ?? '';
 if ($nuevo) {
     if ($correoGet === 'ok') {
-        $aviso = ['success', 'Código creado y enviado a ' . $nuevo['correo'] . '.'];
+        $aviso = ['success', 'Código creado y enviado a ' . $nuevo['correo'] . '. Con él, ' . $nuevo['nombre'] . ' crea su cuenta solo con su cédula y una contraseña.'];
     } elseif ($correoGet === 'error') {
         $aviso = ['warning', 'El código se creó, pero no se pudo enviar el correo. Compártelo a mano con el código o el enlace de abajo.'];
     } else {
-        $aviso = ['info', 'Código creado. Compártelo con ' . $nuevo['nombre'] . ' (el código o el enlace de abajo).'];
+        $aviso = ['info', 'Código creado. El envío de correo no está configurado en config.php: compártelo a mano con el código o el enlace de abajo.'];
     }
 } elseif (isset($_GET['reenviado']) && ($reenviado = codigoPorId($conn, (int) $_GET['reenviado']))) {
     $aviso = $correoGet === 'ok'
@@ -94,7 +95,7 @@ if ($nuevo) {
 }
 
 $codigos = listarCodigosPorteria($conn);
-$porteros = listarPorteros($conn);
+$cuentas = listarPorteros($conn);
 $disponibles = count(array_filter($codigos, function ($c) { return estadoCodigo($c) === 'disponible'; }));
 
 $activeTab = 'porteria';
@@ -104,7 +105,7 @@ require __DIR__ . '/includes/layout_top.php';
 
 <div class="card">
   <h2 class="section-title">Nuevo código de registro</h2>
-  <p class="section-sub">Crea un código para cada persona de portería. Con él crea su cuenta en la página de inicio; cada código sirve para una sola cuenta.</p>
+  <p class="section-sub">Crea un código para cada persona del equipo. Le llega al correo con un enlace, y crea su cuenta desde el celular solo con su cédula y una contraseña. Cada código sirve para una sola cuenta.</p>
 
   <?php if ($aviso): ?>
     <div class="banner <?= $aviso[0] ?>"><?= h($aviso[1]) ?></div>
@@ -112,7 +113,7 @@ require __DIR__ . '/includes/layout_top.php';
   <?php if ($nuevo): ?>
     <div class="codigo-nuevo">
       <div>
-        <span class="horario-etiqueta">Código para <?= h($nuevo['nombre']) ?></span>
+        <span class="horario-etiqueta">Código para <?= h($nuevo['nombre']) ?> · <?= h($roles[$nuevo['rol']] ?? $nuevo['rol']) ?></span>
         <input type="text" id="codigoNuevo" class="codigo-grande" readonly value="<?= h(formatoCodigo($nuevo['codigo'])) ?>" aria-label="Código de registro">
       </div>
       <button type="button" class="btn btn-outline btn-sm" id="btnCopiarCodigo" onclick="copiarEnlace('codigoNuevo', 'btnCopiarCodigo')">Copiar código</button>
@@ -126,7 +127,7 @@ require __DIR__ . '/includes/layout_top.php';
     </div>
   <?php endif; ?>
 
-  <form method="post" novalidate data-enviando="Creando código…">
+  <form method="post" novalidate data-enviando="Creando y enviando…">
     <input type="hidden" name="accion" value="crear">
     <div class="form-grid">
       <div class="full">
@@ -135,23 +136,29 @@ require __DIR__ . '/includes/layout_top.php';
         <?php if (!empty($errores['nombre'])): ?><div class="field-error"><?= h($errores['nombre']) ?></div><?php endif; ?>
       </div>
       <div>
-        <label for="correo">Correo electrónico</label>
+        <label for="correo">Correo electrónico <span class="opt">(ahí le llega el código)</span></label>
         <input type="email" id="correo" name="correo" value="<?= h($valores['correo']) ?>" autocomplete="off" placeholder="nombre@correo.com">
         <?php if (!empty($errores['correo'])): ?><div class="field-error"><?= h($errores['correo']) ?></div><?php endif; ?>
+      </div>
+      <div>
+        <label for="rol">Rol</label>
+        <select id="rol" name="rol">
+          <option value="portero"<?= $valores['rol'] === 'portero' ? ' selected' : '' ?>>Portero — solo registra entradas y salidas</option>
+          <option value="admin"<?= $valores['rol'] === 'admin' ? ' selected' : '' ?>>Administrador — maneja todo el evento</option>
+        </select>
       </div>
       <div>
         <label for="cedula">Cédula <span class="opt">(opcional: solo esa cédula podrá usar el código)</span></label>
         <input type="text" id="cedula" name="cedula" inputmode="numeric" value="<?= h($valores['cedula']) ?>" autocomplete="off">
         <?php if (!empty($errores['cedula'])): ?><div class="field-error"><?= h($errores['cedula']) ?></div><?php endif; ?>
       </div>
-      <div class="full">
-        <label class="check-linea"><input type="checkbox" name="enviar" value="1"<?= $valores['enviar'] ? ' checked' : '' ?><?= EMAIL_HABILITADO ? '' : ' disabled' ?>> Enviarle el código por correo</label>
-        <?php if (!EMAIL_HABILITADO): ?><p class="field-hint">El envío de correo no está configurado en config.php: comparte el código a mano.</p><?php endif; ?>
-      </div>
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary">Crear código</button>
+      <button type="submit" class="btn btn-primary">Crear y enviar código</button>
     </div>
+    <?php if (!EMAIL_HABILITADO): ?>
+      <p class="field-hint">El envío de correo no está configurado en config.php: el código se crea igual y lo puedes compartir a mano.</p>
+    <?php endif; ?>
     <p class="field-hint">El enlace del correo usa la misma dirección con la que entraste al panel: si estás en <em>localhost</em>, solo funcionará en este computador.</p>
   </form>
 </div>
@@ -164,12 +171,13 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Código</th><th>Para</th><th>Correo</th><th>Estado</th><th>Enviado</th><th>Creado</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>Para</th><th>Rol</th><th>Correo</th><th>Estado</th><th>Enviado</th><th>Creado</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($codigos as $c): $estado = estadoCodigo($c); ?>
             <tr>
               <td class="codigo-celda"><?= h(formatoCodigo($c['codigo'])) ?></td>
               <td><?= h($c['nombre']) ?><?php if ($c['cedula'] !== ''): ?><div class="celda-detalle">Solo C.C. <?= h($c['cedula']) ?></div><?php endif; ?></td>
+              <td><?= h($roles[$c['rol']] ?? $c['rol']) ?></td>
               <td><?= h($c['correo'] !== '' ? $c['correo'] : '—') ?></td>
               <td>
                 <?php if ($estado === 'disponible'): ?>
@@ -208,18 +216,19 @@ require __DIR__ . '/includes/layout_top.php';
 </div>
 
 <div class="card">
-  <h2 class="section-title">Porteros registrados (<?= count($porteros) ?>)</h2>
-  <p class="section-sub">Personas con cuenta para entrar al control de acceso.</p>
-  <?php if (!$porteros): ?>
-    <div class="empty-state">Todavía no hay porteros registrados.</div>
+  <h2 class="section-title">Cuentas del equipo (<?= count($cuentas) ?>)</h2>
+  <p class="section-sub">Personas con cuenta para entrar al panel: los porteros solo ven el control de acceso; los administradores, todo.</p>
+  <?php if (!$cuentas): ?>
+    <div class="empty-state">Todavía no hay cuentas.</div>
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Nombre</th><th>Cédula</th><th>Cuenta creada</th><th>Último turno</th><th>Turnos</th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Rol</th><th>Cédula</th><th>Cuenta creada</th><th>Último turno</th><th>Turnos</th></tr></thead>
         <tbody>
-          <?php foreach ($porteros as $p): ?>
+          <?php foreach ($cuentas as $p): ?>
             <tr>
               <td><?= h($p['nombre']) ?><?php if ((int) $p['id'] === (int) $usuario['id']): ?> <span class="text-muted">(tú)</span><?php endif; ?></td>
+              <td><?= h($roles[$p['rol']] ?? $p['rol']) ?></td>
               <td class="cedula-cell"><?= h($p['cedula']) ?></td>
               <td class="mono"><?= fmtFecha($p['creado_en']) ?></td>
               <td class="mono"><?= $p['ultimo_turno'] ? fmtFecha($p['ultimo_turno']) : '—' ?></td>

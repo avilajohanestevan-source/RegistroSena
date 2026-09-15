@@ -3,7 +3,7 @@
  * Historial general: todos los movimientos de entrada y salida, del más
  * reciente al más antiguo, con búsqueda opcional por nombre/cédula/empresa.
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 
 $busqueda = trim($_GET['q'] ?? '');
 $movimientos = historialGeneral($conn, $busqueda, 300);

@@ -6,7 +6,7 @@
  * de acceso y registro de los correos enviados. Desde aquí también se
  * descargan en CSV los movimientos del día.
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 require_once __DIR__ . '/includes/mailer.php';
 
 $horario = horarioEvento($conn);

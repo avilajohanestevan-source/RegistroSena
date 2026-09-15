@@ -4,7 +4,7 @@
  * entrada digita los datos de alguien en vez de que la persona use el QR
  * de autorregistro.php).
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 require_once __DIR__ . '/includes/mailer.php';
 
 $valores = [];

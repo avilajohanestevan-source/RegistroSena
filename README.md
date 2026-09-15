@@ -52,6 +52,8 @@ includes/
   functions.php         Funciones de acceso a datos (registrar, buscar, listar...)
   auth.php              Sesión de portería: cuentas, turnos y punto de control
   panel.php             Arranque de las páginas del panel (exige sesión iniciada)
+  panel_admin.php       Arranque de las páginas que solo ve el administrador
+  estadisticas.php      Cálculos de asistencia para estadísticas y exportes
   codigos_porteria.php  Códigos de registro de portería (crear, validar, usar, anular)
   mailer.php             Envío por correo de la tarjeta con QR (PHPMailer + SMTP)
   head.php               <head> compartido (favicon, tipografía Work Sans, estilos)
@@ -67,6 +69,7 @@ lib/
 assets/
   css/style.css           Estilos con los colores institucionales del SENA
   js/app.js                Dibuja los QR y maneja el escaneo por cámara
+  js/estadisticas.js       Gráficos de Estadísticas (amCharts 5)
   js/qrcode.min.js          Librería para generar códigos QR (vendida localmente)
   js/jsQR.js                 Librería para leer códigos QR desde la cámara
 img/
@@ -76,7 +79,10 @@ img/
 
 index.php              Inicio: qué es el sistema + inicio de sesión / registro de portería
 salir.php              Cierra la sesión (y el turno) del portero
-porteria.php           Panel: códigos de registro de portería + porteros registrados
+porteria.php           Panel (admin): códigos de registro + cuentas del equipo
+estadisticas.php       Panel (admin): indicadores, gráficos amCharts y botones de exporte
+exportar.php           Panel (admin): Excel (PhpSpreadsheet) y PDF (Dompdf)
+composer.json          Librerías de Composer (PhpSpreadsheet, Dompdf) → carpeta vendor/
 evento.php             Panel: nombre, fecha y horario del evento / resumen
 autorregistro.php      Panel: QR + enlace de autorregistro
 registro_admin.php     Panel: registrar manualmente a alguien
@@ -148,8 +154,8 @@ esto a un hosting.
 ## 6. Portería: inicio de sesión y turnos
 
 **Si ya tenías la base de datos creada**, importa en phpMyAdmin, en este
-orden: `migracion_reportes.sql`, `migracion_porteria.sql` y
-`migracion_codigos.sql`.
+orden: `migracion_reportes.sql`, `migracion_porteria.sql`,
+`migracion_codigos.sql` y `migracion_roles.sql`.
 
 - `index.php` es ahora la página de inicio: explica qué es el sistema y
   tiene **Iniciar sesión** y **Registrarme** para el personal de portería.
@@ -171,7 +177,46 @@ orden: `migracion_reportes.sql`, `migracion_porteria.sql` y
 - En el registro, cada asistente elige **qué es**: Aprendiz, Instructor,
   Funcionario, Visitante, Contratista u Otro (y escribe cuál).
 
-## 7. Fecha, horario y reportes
+## 7. Administrador, estadísticas y exportes
+
+Hay dos roles de cuenta:
+
+- **Administrador**: maneja todo el evento — fecha y horario (pestaña
+  *Evento*), códigos de registro (pestaña *Portería*), asistentes,
+  historial, reportes y **Estadísticas**. Al iniciar sesión llega a
+  Estadísticas. La primera cuenta del sistema es administrador, y en
+  *Portería* se pueden crear códigos de administrador para otras personas.
+- **Portero**: solo ve el **Control de acceso** (pensado para usarse desde
+  el celular: escanea el QR con la cámara) y la lista de lo que él mismo
+  registró hoy. Se registra con el código que le llega al correo, solo
+  con su cédula y una contraseña.
+
+**Estadísticas** (`estadisticas.php`) muestra, para el rango de días que
+elijas, los indicadores del evento y gráficos hechos con **amCharts 5**
+(se cargan desde internet): cuántos asistieron y cuántos no, quién
+registró su salida, asistencia por tipo, intentos fallidos por motivo,
+entradas y salidas por hora y por día, cuántas veces entró cada persona y
+registros por portero. Debajo, cada asistente con todas sus entradas y
+salidas.
+
+Desde ahí mismo se exporta (`exportar.php`), igual que en TaxSync:
+
+- **Excel** (PhpSpreadsheet): un libro con las hojas *Resumen*,
+  *Invitados* (todos los registrados y si asistieron), *Asistencia*
+  (primera entrada, última salida, veces que entró y salió, tiempo
+  adentro y el detalle de cada entrada y salida), *Movimientos* (cada
+  entrada y salida, con el número de vez y quién la registró) e
+  *Intentos fallidos*.
+- **PDF** (Dompdf): lista de invitados, asistencia con entradas y salidas,
+  y movimientos, con el logo del SENA.
+
+Las librerías se instalan con Composer, en la carpeta del proyecto:
+
+```
+composer install
+```
+
+## 8. Fecha, horario y reportes
 
 **Si ya tenías la base de datos creada**, importa `migracion_reportes.sql`
 en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
@@ -191,10 +236,11 @@ en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
   `{evento}` y `{hora_entrada}`) y das clic en *Enviar aviso*. Queda
   registrado si se envió o no, y a quién ya se le mandó aviso.
 
-## 8. Cuando esto pase a la nube
+## 9. Cuando esto pase a la nube
 
 Solo tendrías que:
-1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor).
+1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor),
+   incluida la carpeta `vendor/` (o ejecutar `composer install` allá).
 2. Crear la base de datos allá e importar `database.sql`.
 3. Cambiar las 4 constantes de `config.php` por los datos que te dé el
    proveedor (host, usuario, contraseña, nombre de la base de datos).
