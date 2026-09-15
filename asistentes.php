@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 
 $busqueda = trim($_GET['q'] ?? '');
 $lista = listarAsistentes($conn, $busqueda);

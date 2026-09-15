@@ -146,12 +146,15 @@ function plantillaCorreoAviso($mensaje, $evento, $cidLogo = null) {
  */
 function plantillaCorreoCodigo(array $codigo, $evento, $url, $cidLogo = null) {
     $restriccion = $codigo['cedula'] !== '' ? ' Solo funciona con la cédula ' . h($codigo['cedula']) . '.' : '';
+    $invitacion = ($codigo['rol'] ?? 'portero') === 'admin'
+        ? 'Te invitaron a ser <strong>administrador</strong> del control de ingreso de <strong>' . h($evento) . '</strong>.'
+        : 'Te invitaron a hacer parte del equipo de portería de <strong>' . h($evento) . '</strong>: vas a registrar las entradas y salidas desde tu celular.';
     $contenido = '
         <tr>
           <td style="padding:26px 24px 8px;font-size:15px;line-height:1.6;color:#1B1B1B;">
             Hola ' . h($codigo['nombre']) . ':<br><br>
-            Te invitaron a hacer parte del equipo de portería de <strong>' . h($evento) . '</strong>.
-            Con este código creas tu cuenta para registrar las entradas y salidas del evento:
+            ' . $invitacion . '
+            Para crear tu cuenta solo necesitas tu cédula, una contraseña y este código:
           </td>
         </tr>
         <tr>
@@ -182,7 +185,7 @@ function enviarCodigoPorteria(array $codigo, $evento, $url) {
     try {
         $mail = crearMailer();
         $mail->addAddress($codigo['correo'], $codigo['nombre']);
-        $mail->Subject = 'Tu código de portería · ' . $evento;
+        $mail->Subject = (($codigo['rol'] ?? 'portero') === 'admin' ? 'Tu código de administrador · ' : 'Tu código de portería · ') . $evento;
         $cidLogo = incrustarLogo($mail);
         $mail->Body = plantillaCorreoCodigo($codigo, $evento, $url, $cidLogo);
         $mail->AltBody = 'Hola ' . $codigo['nombre'] . ":\n\n" .

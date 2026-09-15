@@ -3,7 +3,7 @@
  * Pestaña Evento del panel: nombre, fecha(s) y horario de ingreso del
  * evento, resumen de asistentes y accesos rápidos.
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 
 // Valores del formulario "Datos del evento". fecha_fin se lee tal cual
 // (horarioEvento() la rellena con la de inicio cuando está vacía).
@@ -118,6 +118,7 @@ require __DIR__ . '/includes/layout_top.php';
   <h2 class="section-title">Accesos rápidos</h2>
   <div class="form-actions">
     <a class="btn btn-primary" href="control.php">Control de acceso</a>
+    <a class="btn btn-outline" href="estadisticas.php">Estadísticas y exportes</a>
     <a class="btn btn-outline" href="autorregistro.php">QR de autorregistro</a>
     <a class="btn btn-outline" href="registro_admin.php">Registrar manualmente</a>
     <a class="btn btn-outline" href="reportes.php">Ver reportes</a>

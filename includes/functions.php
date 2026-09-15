@@ -432,6 +432,25 @@ function intentarMovimiento(mysqli $conn, $cedula, $tipoSolicitado, $usuarioId =
     return ['ok' => false, 'nivel' => 'error', 'mensaje' => 'Acción no reconocida.', 'asistente' => $asistente];
 }
 
+/** Lo que un portero registró hoy (lo más reciente primero), para su lista en el control de acceso. */
+function movimientosDePortero(mysqli $conn, $usuarioId, $limite = 15) {
+    $limite = (int) $limite;
+    $desde = date('Y-m-d') . ' 00:00:00';
+    $stmt = $conn->prepare(
+        "SELECT m.tipo, m.fecha, a.nombre, a.cedula
+         FROM movimientos m
+         JOIN asistentes a ON a.cedula = m.cedula
+         WHERE m.usuario_id = ? AND m.fecha >= ?
+         ORDER BY m.fecha DESC, m.id DESC
+         LIMIT $limite"
+    );
+    $stmt->bind_param('is', $usuarioId, $desde);
+    $stmt->execute();
+    $filas = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    return $filas;
+}
+
 function registrarAviso(mysqli $conn, $cedula, $tipo, $mensaje, $usuarioId = null) {
     $stmt = $conn->prepare("INSERT INTO avisos (cedula, tipo, mensaje, usuario_id) VALUES (?, ?, ?, ?)");
     $stmt->bind_param('sssi', $cedula, $tipo, $mensaje, $usuarioId);

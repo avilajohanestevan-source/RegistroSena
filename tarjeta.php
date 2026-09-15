@@ -14,8 +14,7 @@ $evento = nombreEvento($conn);
 $panel = ($_GET['panel'] ?? '1') !== '0';
 
 if ($panel) {
-    require_once __DIR__ . '/includes/auth.php';
-    requerirSesion();
+    require_once __DIR__ . '/includes/panel_admin.php';
 }
 
 if ($panel) {
