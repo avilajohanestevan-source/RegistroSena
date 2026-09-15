@@ -9,11 +9,17 @@ $qrTexto = textoQR($asistente['cedula'], $asistente['nombre']);
 <div class="badge-wrap">
   <div class="badge card-print">
     <div class="badge-head">
-      <div class="org">SENA</div>
-      <div class="ev"><?= h($evento) ?></div>
+      <img class="badge-logo" src="img/sena-logo-blanco.png" alt="Logo SENA">
+      <div>
+        <div class="org">Tarjeta de ingreso</div>
+        <div class="ev"><?= h($evento) ?></div>
+      </div>
     </div>
     <div class="badge-body">
       <div class="badge-qr"><div class="qr-target" data-texto="<?= h($qrTexto) ?>"></div></div>
+      <?php if (!empty($asistente['tipo'])): ?>
+        <div class="badge-tipo"><?= h(tipoAsistente($asistente['tipo'], $asistente['tipo_otro'] ?? '')) ?></div>
+      <?php endif; ?>
       <div class="badge-name"><?= h($asistente['nombre']) ?></div>
       <div class="badge-cedula">C.C. <?= h($asistente['cedula']) ?></div>
       <?php if (!empty($asistente['telefono'])): ?>

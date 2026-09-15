@@ -14,31 +14,20 @@ $evento = nombreEvento($conn);
 $panel = ($_GET['panel'] ?? '1') !== '0';
 
 if ($panel) {
+    require_once __DIR__ . '/includes/auth.php';
+    requerirSesion();
+}
+
+if ($panel) {
     $activeTab = 'asistentes';
     require __DIR__ . '/includes/layout_top.php';
 } else {
+    $tituloPagina = 'Tu tarjeta · ' . $evento;
+    $subtitulo = 'Tu tarjeta de ingreso';
+    require __DIR__ . '/includes/head.php';
 ?>
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tu tarjeta · <?= h($evento) ?></title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=<?= assetVersion('assets/css/style.css') ?>">
-</head>
 <body>
-  <header class="topbar" style="justify-content:center;">
-    <div class="brand">
-      <img class="brand-mark" src="img/Sena-Logo.png" alt="Logo SENA">
-      <div class="brand-text">
-        <h1><?= h($evento) ?></h1>
-        <span class="event-name">Tu tarjeta de ingreso</span>
-      </div>
-    </div>
-  </header>
+  <?php require __DIR__ . '/includes/header_publico.php'; ?>
   <main class="content"><div class="content-inner">
 <?php
 }
@@ -76,7 +65,7 @@ if ($panel) {
 } else {
 ?>
   </div></main>
-  <?php require __DIR__ . '/includes/footer_publico.php'; ?>
+  <?php require __DIR__ . '/includes/footer.php'; ?>
   <script src="assets/js/qrcode.min.js?v=<?= assetVersion('assets/js/qrcode.min.js') ?>"></script>
   <script src="assets/js/app.js?v=<?= assetVersion('assets/js/app.js') ?>"></script>
 </body>

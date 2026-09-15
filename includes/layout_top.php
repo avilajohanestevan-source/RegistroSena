@@ -1,49 +1,64 @@
 <?php
 /**
- * Encabezado compartido por las páginas del panel administrativo.
+ * Encabezado compartido por las páginas del panel de portería.
  * Antes de incluir este archivo hay que definir:
- *   $activeTab  -> 'inicio' | 'autorregistro' | 'registro' | 'control' | 'historial' | 'asistentes'
- *   $wide       -> (opcional) true para un contenido más ancho (tabla de asistentes)
- * y tener ya cargado includes/db.php + includes/functions.php.
+ *   $activeTab  -> 'control' | 'autorregistro' | 'registro' | 'asistentes' | 'historial' | 'reportes' | 'porteria' | 'evento'
+ *   $wide       -> (opcional) true para un contenido más ancho (tablas)
+ * y tener ya cargado includes/panel.php (conexión, funciones y sesión).
  */
 $evento = nombreEvento($conn);
 $conteo = contarEstados($conn);
 $wide = $wide ?? false;
+$horarioBarra = horarioEvento($conn);
+$estadoBarra = horarioConfigurado($horarioBarra) ? estadoHorario($horarioBarra) : null;
+$usuarioSesion = usuarioActual();
+$pestanas = [
+    'control'       => ['control.php', 'Control de acceso'],
+    'autorregistro' => ['autorregistro.php', 'Autorregistro'],
+    'registro'      => ['registro_admin.php', 'Registro'],
+    'asistentes'    => ['asistentes.php', 'Asistentes'],
+    'historial'     => ['historial.php', 'Historial'],
+    'reportes'      => ['reportes.php', 'Reportes'],
+    'porteria'      => ['porteria.php', 'Portería'],
+    'evento'        => ['evento.php', 'Evento'],
+];
+$tituloPagina = 'Panel de ingreso · ' . $evento;
+require __DIR__ . '/head.php';
 ?>
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Panel de ingreso · <?= h($evento) ?></title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=<?= assetVersion('assets/css/style.css') ?>">
-</head>
 <body>
   <div class="site-header">
     <header class="topbar">
       <div class="brand">
-        <img class="brand-mark" src="img/Sena-Logo.png" alt="Logo SENA">
+        <img class="brand-logo" src="img/sena-logo-blanco.png" alt="Logo SENA">
+        <span class="brand-divider" aria-hidden="true"></span>
         <div class="brand-text">
           <h1>Control de ingreso</h1>
           <span class="event-name"><?= h($evento) ?></span>
         </div>
       </div>
-      <div class="stat-pills">
-        <span class="pill in"><span class="dot"></span>Dentro <span class="num"><?= $conteo['dentro'] ?></span></span>
-        <span class="pill out"><span class="dot"></span>Fuera <span class="num"><?= $conteo['fuera'] ?></span></span>
-        <span class="pill total"><span class="dot"></span>Registrados <span class="num"><?= $conteo['total'] ?></span></span>
+      <div class="topbar-derecha">
+        <div class="stat-pills">
+          <?php if ($estadoBarra): ?>
+            <span class="pill <?= $estadoBarra['abierto'] ? 'abierto' : 'cerrado' ?>" title="<?= h(textoHorario($horarioBarra)) ?>"><span class="dot"></span><?= $estadoBarra['abierto'] ? 'Ingreso abierto' : 'Ingreso cerrado' ?></span>
+          <?php endif; ?>
+          <span class="pill in"><span class="dot"></span>Dentro <span class="num"><?= $conteo['dentro'] ?></span></span>
+          <span class="pill out"><span class="dot"></span>Fuera <span class="num"><?= $conteo['fuera'] ?></span></span>
+          <span class="pill total"><span class="dot"></span>Registrados <span class="num"><?= $conteo['total'] ?></span></span>
+        </div>
+        <div class="sesion">
+          <div class="sesion-datos">
+            <span class="sesion-nombre"><?= h($usuarioSesion['nombre']) ?></span>
+            <span class="sesion-punto"><?= h(puntosControl()[$usuarioSesion['punto']] ?? '') ?></span>
+          </div>
+          <a class="sesion-salir" href="salir.php">Cerrar sesión</a>
+        </div>
       </div>
     </header>
     <nav class="tabs">
-      <a class="tab-btn<?= $activeTab === 'inicio' ? ' active' : '' ?>" href="index.php">Inicio</a>
-      <a class="tab-btn<?= $activeTab === 'autorregistro' ? ' active' : '' ?>" href="autorregistro.php">Autorregistro</a>
-      <a class="tab-btn<?= $activeTab === 'registro' ? ' active' : '' ?>" href="registro_admin.php">Registro</a>
-      <a class="tab-btn<?= $activeTab === 'control' ? ' active' : '' ?>" href="control.php">Control de acceso</a>
-      <a class="tab-btn<?= $activeTab === 'historial' ? ' active' : '' ?>" href="historial.php">Historial</a>
-      <a class="tab-btn<?= $activeTab === 'asistentes' ? ' active' : '' ?>" href="asistentes.php">Asistentes</a>
+      <?php /* Nombres propios para no pisar variables de la página (p. ej. $url en autorregistro.php). */ ?>
+      <?php foreach ($pestanas as $clavePestana => [$archivoPestana, $textoPestana]): ?>
+        <a class="tab-btn<?= $activeTab === $clavePestana ? ' active' : '' ?>" href="<?= $archivoPestana ?>"><?= $textoPestana ?></a>
+      <?php endforeach; ?>
     </nav>
   </div>
   <main class="content"><div class="content-inner<?= $wide ? ' wide' : '' ?>">

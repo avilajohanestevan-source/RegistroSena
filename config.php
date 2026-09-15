@@ -15,6 +15,15 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_NAME', 'sena_evento');
 
+/**
+ * Código INICIAL de portería: solo sirve para crear la primera cuenta en
+ * la página de inicio (index.php), mientras no exista ningún portero.
+ * Después, cada persona de portería se registra con su propio código,
+ * que se crea y se le envía desde la pestaña "Portería" del panel (tabla
+ * codigos_porteria). Cámbialo antes de subir el sistema a internet.
+ */
+define('CODIGO_REGISTRO_PORTERIA', 'SENA-PORTERIA-2026');
+
 // Zona horaria usada para las fechas de registro y de entrada/salida.
 date_default_timezone_set('America/Bogota');
 

@@ -3,8 +3,7 @@
  * Historial general: todos los movimientos de entrada y salida, del más
  * reciente al más antiguo, con búsqueda opcional por nombre/cédula/empresa.
  */
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/panel.php';
 
 $busqueda = trim($_GET['q'] ?? '');
 $movimientos = historialGeneral($conn, $busqueda, 300);
@@ -31,15 +30,17 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Nombre</th><th>Cédula</th><th>Empresa</th></tr></thead>
+        <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Nombre</th><th>Tipo</th><th>Cédula</th><th>Empresa</th><th>Registró</th></tr></thead>
         <tbody>
           <?php foreach ($movimientos as $m): ?>
             <tr>
               <td class="mono"><?= fmtFecha($m['fecha']) ?></td>
               <td><span class="<?= $m['tipo'] === 'entrada' ? 'type-in' : 'type-out' ?>"><?= $m['tipo'] === 'entrada' ? 'Entrada' : 'Salida' ?></span></td>
               <td><?= h($m['nombre']) ?></td>
+              <td><?= h(tipoAsistente($m['tipo_asistente'], $m['tipo_otro'])) ?></td>
               <td class="cedula-cell"><?= h($m['cedula']) ?></td>
               <td><?= h($m['empresa'] !== '' ? $m['empresa'] : '—') ?></td>
+              <td><?= h($m['portero'] ?? '—') ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>

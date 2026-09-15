@@ -9,35 +9,32 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
 $evento = nombreEvento($conn);
+$horario = horarioEvento($conn);
+$tituloPagina = 'Control de entrada · ' . $evento;
+$subtitulo = 'Control de entrada';
+require __DIR__ . '/includes/head.php';
 ?>
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Control de entrada · <?= h($evento) ?></title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/style.css?v=<?= assetVersion('assets/css/style.css') ?>">
-</head>
 <body>
-  <header class="topbar" style="justify-content:center;">
-    <div class="brand">
-      <img class="brand-mark" src="img/Sena-Logo.png" alt="Logo SENA">
-      <div class="brand-text">
-        <h1><?= h($evento) ?></h1>
-        <span class="event-name">Control de entrada</span>
-      </div>
-    </div>
-  </header>
+  <?php require __DIR__ . '/includes/header_publico.php'; ?>
   <main class="content content-center"><div class="content-inner" style="max-width:620px;">
-    <div class="card portal-card" style="text-align:center;">
+    <div class="card card--marca portal-card" style="text-align:center;">
       <h2 class="section-title">¿Qué necesitas hacer?</h2>
       <p class="section-sub">Elige una opción para continuar.</p>
+      <?php if (horarioConfigurado($horario)): ?>
+        <div class="evento-fecha">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+          <?= h(textoHorario($horario)) ?>
+        </div>
+      <?php endif; ?>
       <div class="portal-options">
-        <a class="btn btn-primary btn-block btn-lg" href="registro.php">Registrarme para el evento</a>
-        <a class="btn btn-outline btn-block btn-lg" href="consultar.php">Consultar mi tarjeta con mi cédula</a>
+        <a class="btn btn-primary btn-block btn-lg" href="registro.php">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="4"/><path d="M3 20c0-3.3 3.1-6 7-6 1.3 0 2.5.3 3.5.8"/><path d="M18 14v6M15 17h6"/></svg>
+          Registrarme para el evento
+        </a>
+        <a class="btn btn-outline btn-block btn-lg" href="consultar.php">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+          Consultar mi tarjeta con mi cédula
+        </a>
       </div>
       <p class="section-sub portal-hint">
         Si es tu primera vez aquí, regístrate — quedas con tu propio código QR para entrar y salir.
@@ -45,6 +42,6 @@ $evento = nombreEvento($conn);
       </p>
     </div>
   </div></main>
-  <?php require __DIR__ . '/includes/footer_publico.php'; ?>
+  <?php require __DIR__ . '/includes/footer.php'; ?>
 </body>
 </html>

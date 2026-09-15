@@ -50,10 +50,15 @@ migracion_telefono.sql  Migración: agrega la columna `telefono` a una BD ya exi
 includes/
   db.php                Conexión mysqli
   functions.php         Funciones de acceso a datos (registrar, buscar, listar...)
+  auth.php              Sesión de portería: cuentas, turnos y punto de control
+  panel.php             Arranque de las páginas del panel (exige sesión iniciada)
+  codigos_porteria.php  Códigos de registro de portería (crear, validar, usar, anular)
   mailer.php             Envío por correo de la tarjeta con QR (PHPMailer + SMTP)
+  head.php               <head> compartido (favicon, tipografía Work Sans, estilos)
+  header_publico.php     Cabecera de las pantallas públicas (logo SENA blanco)
   layout_top.php         Cabecera y menú del panel admin
-  layout_bottom.php       Cierre de página + scripts
-  footer_publico.php      Pie de página de las pantallas públicas (logo SENA)
+  layout_bottom.php       Cierre de página + pie + scripts
+  footer.php              Pie de página (panel y pantallas públicas, logo SENA)
   form_registro.php       Formulario reutilizable (público y admin)
   badge.php               Tarjeta/carné con el QR
   tabla_estado.php        Tablas "adentro"/"salieron" (usadas en entrada.php y salida.php)
@@ -65,26 +70,39 @@ assets/
   js/qrcode.min.js          Librería para generar códigos QR (vendida localmente)
   js/jsQR.js                 Librería para leer códigos QR desde la cámara
 img/
-  Sena-Logo.png            Logo oficial usado en cabeceras, pie de página y tarjeta
+  Sena-Logo.png            Logo original (se conserva como referencia)
+  sena-logo-verde.png      Logo en verde institucional #39A900 (favicon y marcas de agua)
+  sena-logo-blanco.png     Logo en blanco / negativo (cabeceras, pie y tarjeta)
 
-index.php              Panel: inicio / nombre del evento / resumen
+index.php              Inicio: qué es el sistema + inicio de sesión / registro de portería
+salir.php              Cierra la sesión (y el turno) del portero
+porteria.php           Panel: códigos de registro de portería + porteros registrados
+evento.php             Panel: nombre, fecha y horario del evento / resumen
 autorregistro.php      Panel: QR + enlace de autorregistro
 registro_admin.php     Panel: registrar manualmente a alguien
 entrada.php            Panel: registrar/escanear entradas + quién está adentro/afuera
 salida.php             Panel: registrar/escanear salidas + quién está adentro/afuera
 historial.php          Panel: historial general de entradas y salidas
+reportes.php           Panel: reportes por día, sin salida + aviso por correo, CSV
 control.php            (en desuso) redirige a entrada.php por compatibilidad
 asistentes.php         Panel: listado y búsqueda de todos los asistentes
 registro.php            PÚBLICO: formulario que abre el QR de autorregistro
 tarjeta.php              Tarjeta de un asistente (se ve dentro y fuera del panel)
 ```
 
-## 4. Colores usados (paleta institucional SENA)
+## 4. Identidad visual (Manual SENA — Resolución 1825 de 2024)
 
-- Verde principal `#39A900`, verde oscuro `#007832` (botones, acentos, QR)
-- Azul oscuro `#00304D` (barra superior)
-- Oro `#FDC300` (detalle en la pastilla "Fuera")
-- Fondo blanco `#FFFFFF` en todo el contenido, como pediste.
+- **Color institucional:** verde `#39A900` (botones, acentos, bordes, logo).
+- **Paleta secundaria:** verde oscuro `#007832`, azul oscuro `#00304D`
+  (cabecera y pie), azul claro `#50E5F9`, violeta `#71277A`, amarillo `#FDC300`.
+- **Tipografía:** Work Sans (Calibri como respaldo para web); nunca en
+  sus pesos Thin/ExtraLight.
+- **Logo:** solo en verde institucional sobre fondos claros o en blanco
+  (negativo) sobre fondos oscuros, sin sombras, degradados ni rotaciones.
+- **Marcas de agua:** el símbolo SENA muy tenue en el fondo de la página,
+  en la cabecera, en el pie, en las tarjetas públicas y en el carné.
+- **Íconos:** de línea, sin relleno.
+- Fondo blanco `#FFFFFF` en todo el contenido.
 
 ## 5. Enviar la tarjeta por correo al registrarse
 
@@ -127,7 +145,53 @@ El código QR que se pone en el correo se genera con un servicio gratuito
 tienes disponible normalmente, tanto en tu computador como cuando subas
 esto a un hosting.
 
-## 6. Cuando esto pase a la nube
+## 6. Portería: inicio de sesión y turnos
+
+**Si ya tenías la base de datos creada**, importa en phpMyAdmin, en este
+orden: `migracion_reportes.sql`, `migracion_porteria.sql` y
+`migracion_codigos.sql`.
+
+- `index.php` es ahora la página de inicio: explica qué es el sistema y
+  tiene **Iniciar sesión** y **Registrarme** para el personal de portería.
+  Todo el panel (control de acceso, registro, reportes...) exige sesión.
+- Para crear una cuenta hace falta un **código de registro**. Cada código
+  se crea en la pestaña **Portería** para una persona (con su correo y,
+  si quieres, su cédula), se le envía por correo con un enlace que abre
+  el registro con el código ya puesto, y sirve para crear **una sola
+  cuenta**: al registrarse se valida contra la tabla `codigos_porteria` y
+  queda marcado como usado. Mientras no se use, se puede reenviar o anular.
+- La **primera cuenta** (cuando todavía no hay ningún portero) se crea con
+  el código inicial de `config.php` (`CODIGO_REGISTRO_PORTERIA`). En
+  cuanto existe un portero, ese código deja de servir.
+- Al entrar, el portero elige su **punto de control**: portería de
+  entrada, de salida, o ambas. El control de acceso muestra solo lo que
+  le corresponde, y cada entrada, salida o aviso queda a su nombre.
+- Cada sesión es un **turno** (inicio y fin). En *Reportes* se ve quién
+  estuvo en cada punto de control ese día y cuántos movimientos registró.
+- En el registro, cada asistente elige **qué es**: Aprendiz, Instructor,
+  Funcionario, Visitante, Contratista u Otro (y escribe cuál).
+
+## 7. Fecha, horario y reportes
+
+**Si ya tenías la base de datos creada**, importa `migracion_reportes.sql`
+en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
+
+- **Fecha y horario del evento** (pestaña *Evento*): fecha de inicio,
+  fecha de finalización (si dura varios días) y hora de apertura y cierre
+  del ingreso. Fuera de ese rango el control de acceso no deja registrar
+  entradas y el intento queda como aviso "Fuera de horario". Las salidas
+  y el autorregistro siguen funcionando. Si dejas los campos vacíos, no
+  se limita nada.
+- **Reportes** (pestaña *Reportes*): eliges un día y ves cuántos
+  asistieron, quién **entró y no registró salida**, los avisos del
+  control de acceso y el registro de los correos enviados. También puedes
+  descargar los movimientos del día en CSV (se abre en Excel).
+- **Aviso por correo**: en la lista de quienes no registraron salida
+  marcas a las personas, ajustas el asunto y el mensaje (con `{nombre}`,
+  `{evento}` y `{hora_entrada}`) y das clic en *Enviar aviso*. Queda
+  registrado si se envió o no, y a quién ya se le mandó aviso.
+
+## 8. Cuando esto pase a la nube
 
 Solo tendrías que:
 1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor).

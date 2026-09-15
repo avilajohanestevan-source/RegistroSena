@@ -1,31 +1,51 @@
-/* Paleta institucional del SENA (verde, azul oscuro y oro) sobre fondo blanco. */
+/* Estilos alineados al Manual de Identidad Visual del SENA (Resolución
+   1825 de 2024): verde institucional #39A900 como color protagonista,
+   paleta secundaria de apoyo, tipografía Work Sans (Calibri como
+   respaldo para web) e íconos/elementos de línea sobre fondo blanco.
+   El logo solo se usa en sus versiones permitidas: verde institucional
+   sobre fondos claros y blanco (negativo) sobre fondos oscuros — sin
+   sombras, degradados, rotaciones ni cambios de color. */
 :root{
-  --sena-verde:       #39A900;
-  --sena-verde-oscuro:#007832;
-  --sena-azul:        #00304D;
-  --sena-oro:         #FDC300;
+  /* Color institucional */
+  --sena-verde:        #39A900;
+  /* Paleta secundaria */
+  --sena-verde-oscuro: #007832;
+  --sena-azul:         #00304D;
+  --sena-azul-claro:   #50E5F9;
+  --sena-violeta:      #71277A;
+  --sena-oro:          #FDC300;
+  /* Neutros */
+  --sena-gris-claro:   #F6F6F6;
+  --sena-gris-oscuro:  #4D4D4D;
 
-  --bg:       #FFFFFF;
-  --surface:  #FFFFFF;
-  --surface-2:#F2F7EE;
-  --border:   #DCE6D3;
-  --text:     #14201A;
-  --text-muted:#5C6B5C;
+  --bg:        #FFFFFF;
+  --surface:   #FFFFFF;
+  --surface-2: #F4F9F0;
+  --border:    #DDE5D8;
+  --text:      #1B1B1B;
+  --text-muted:#5B6660;
 
-  --accent:       var(--sena-verde);
-  --accent-dark:  var(--sena-verde-oscuro);
+  --accent:         var(--sena-verde);
+  --accent-dark:    var(--sena-verde-oscuro);
   --accent-contrast:#FFFFFF;
 
   --status-in:    var(--sena-verde-oscuro);
-  --status-in-bg: #E3F3DC;
-  --status-out:   #9A6A00;
-  --status-out-bg:#FBF0D2;
+  --status-in-bg: #E4F4DA;
+  --status-out:   #8A5E00;
+  --status-out-bg:#FFF4CC;
 
   --danger:    #B3261E;
   --danger-bg: #FBE6E4;
 
-  --shadow: 0 1px 2px rgba(0,48,77,0.06), 0 10px 26px -14px rgba(0,48,77,0.22);
+  --shadow: 0 1px 2px rgba(0,48,77,0.05), 0 12px 28px -16px rgba(0,48,77,0.25);
   --radius: 14px;
+
+  --font: "Work Sans", Calibri, Carlito, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Logos (rutas relativas a este archivo) */
+  --logo-verde:  url("../../img/sena-logo-verde.png");
+  --logo-blanco: url("../../img/sena-logo-blanco.png");
 }
 
 *{ box-sizing:border-box; }
@@ -33,21 +53,27 @@ html,body{ margin:0; padding:0; height:100%; }
 body{
   background:var(--bg);
   color:var(--text);
-  font-family:"Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family:var(--font);
+  font-size:15px;
+  line-height:1.5;
   -webkit-font-smoothing:antialiased;
   min-height:100vh;
   display:flex;
   flex-direction:column;
+  position:relative;
 }
-h1,h2,h3{
-  font-family:"Archivo", system-ui, sans-serif;
-  font-weight:700;
-  margin:0;
+/* Marca de agua de página: el símbolo SENA en verde institucional, muy
+   tenue, fijo en la esquina inferior derecha detrás de todo el contenido. */
+body::before{
+  content:""; position:fixed; z-index:-1; pointer-events:none;
+  right:-6vmin; bottom:-6vmin; width:min(58vmin, 560px); aspect-ratio:1;
+  background:var(--logo-verde) no-repeat center / contain;
+  opacity:0.045;
 }
-.mono{ font-family:"JetBrains Mono", ui-monospace, monospace; }
+h1,h2,h3{ font-family:var(--font); font-weight:700; margin:0; letter-spacing:-0.01em; }
+.mono{ font-family:var(--font-mono); }
 a{ color:var(--accent-dark); }
-button{ font-family:inherit; }
-input, select{ font-family:inherit; }
+button, input, select{ font-family:inherit; }
 
 /* ---------- barra superior + navegación admin ----------
    .site-header agrupa la barra azul y las pestañas para que ambas queden
@@ -55,46 +81,72 @@ input, select{ font-family:inherit; }
    la página tiene tablas largas más abajo. */
 .site-header{ position:sticky; top:0; z-index:20; }
 .topbar{
+  position:relative; overflow:hidden;
   background:var(--sena-azul);
   color:#fff;
   padding:16px 24px;
   display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  border-bottom:4px solid var(--sena-verde);
 }
-.topbar .brand{ display:flex; align-items:center; gap:12px; }
-.brand-mark{
-  width:44px; height:44px; border-radius:10px; background:#fff;
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  padding:5px; box-shadow:0 1px 3px rgba(0,0,0,0.15);
+/* Marca de agua en la barra: logo blanco (versión negativa) grande y
+   recortado por el borde derecho. */
+.topbar::after{
+  content:""; position:absolute; pointer-events:none;
+  right:-50px; top:50%; width:230px; aspect-ratio:1; transform:translateY(-50%);
+  background:var(--logo-blanco) no-repeat center / contain;
+  opacity:0.07;
 }
-.brand-mark img{ width:100%; height:100%; object-fit:contain; display:block; }
+.topbar > *{ position:relative; z-index:1; }
+/* overflow:hidden (para recortar la marca de agua) permite que el flex
+   del body encoja la barra y el pie en páginas largas — esto lo evita. */
+.topbar, .site-footer{ flex-shrink:0; }
+.topbar .brand{ display:flex; align-items:center; gap:14px; }
+.brand-logo{ width:48px; height:48px; object-fit:contain; display:block; flex-shrink:0; }
 .brand-text h1{ font-size:18px; line-height:1.2; color:#fff; }
-.brand-text .event-name{ font-size:13px; color:#cfe8d8; margin-top:2px; display:block; }
+.brand-text .event-name{ font-size:13px; color:#D5ECC8; margin-top:2px; display:block; }
+.brand-divider{ width:1px; align-self:stretch; background:rgba(255,255,255,0.25); }
+.eyebrow{
+  display:block; font-size:11px; font-weight:600; letter-spacing:1.4px; text-transform:uppercase;
+  color:#D5ECC8; margin-bottom:2px;
+}
+
+/* Cabecera de las pantallas públicas: más alta y centrada. */
+.topbar--public{ justify-content:center; padding:26px 20px 24px; }
+.topbar--public::after{ width:320px; right:-70px; }
+.topbar--public .brand-logo{ width:64px; height:64px; }
+.topbar--public .brand-text h1{ font-size:22px; }
+@media (max-width:520px){
+  .topbar--public .brand-logo{ width:52px; height:52px; }
+  .topbar--public .brand-text h1{ font-size:19px; }
+}
+
 .stat-pills{ display:flex; gap:8px; flex-wrap:wrap; }
 .pill{
   display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px;
   font-size:13px; font-weight:600; background:rgba(255,255,255,0.12); color:#fff;
 }
 .pill .dot{ width:8px; height:8px; border-radius:50%; }
-.pill.in .dot{ background:#8be08a; }
+.pill.in .dot{ background:var(--sena-verde); }
 .pill.out .dot{ background:var(--sena-oro); }
-.pill.total .dot{ background:#cfe8d8; }
-.pill .num{ font-family:"JetBrains Mono",monospace; }
+.pill.total .dot{ background:var(--sena-azul-claro); }
+.pill .num{ font-family:var(--font-mono); }
 
 .tabs{
   display:flex; gap:4px; padding:0 20px; background:var(--surface);
-  border-bottom:2px solid var(--sena-verde); overflow-x:auto;
+  border-bottom:1px solid var(--border); overflow-x:auto;
+  box-shadow:0 6px 16px -14px rgba(0,48,77,0.5);
 }
 .tab-btn{
-  border:none; background:none; padding:12px 16px; font-size:14px; font-weight:600; color:var(--text-muted);
+  border:none; background:none; padding:13px 16px; font-size:14px; font-weight:600; color:var(--text-muted);
   cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; text-decoration:none; display:inline-block;
 }
 .tab-btn:hover{ color:var(--accent-dark); }
 .tab-btn.active{ color:var(--accent-dark); border-bottom-color:var(--sena-verde); }
 
 /* flex:1 hace que el contenido crezca para llenar el espacio libre, así
-   el pie de página (o el final del panel, en las páginas que no tienen
-   pie) siempre queda pegado abajo del todo — nunca flotando con un
-   espacio en blanco debajo, ni cuando la página tiene poco contenido. */
+   el pie de página siempre queda pegado abajo del todo — nunca flotando
+   con un espacio en blanco debajo, ni cuando la página tiene poco
+   contenido. */
 .content{ padding:28px 20px 60px; width:100%; flex:1 0 auto; }
 .content-inner{ max-width:880px; margin:0 auto; }
 .content-inner.wide{ max-width:1320px; }
@@ -111,11 +163,21 @@ input, select{ font-family:inherit; }
   padding:24px; box-shadow:var(--shadow);
 }
 .card + .card{ margin-top:20px; }
+/* Tarjeta con el símbolo SENA como marca de agua en la esquina inferior
+   derecha (pantallas públicas). */
+.card--marca{ position:relative; overflow:hidden; border-top:4px solid var(--sena-verde); }
+.card--marca::after{
+  content:""; position:absolute; pointer-events:none;
+  right:-36px; bottom:-36px; width:200px; aspect-ratio:1;
+  background:var(--logo-verde) no-repeat center / contain;
+  opacity:0.07;
+}
+.card--marca > *{ position:relative; z-index:1; }
 /* Tarjeta que se ajusta al ancho de su contenido en vez de estirarse a
    todo el ancho del panel — para las que solo envuelven una tabla
    compacta (ver .table-wrap--compact más abajo). */
 .card--fit{ width:fit-content; max-width:100%; }
-.section-title{ font-size:20px; margin-bottom:4px; }
+.section-title{ font-size:20px; margin-bottom:4px; color:var(--sena-azul); }
 .section-sub{ color:var(--text-muted); font-size:14px; margin:4px 0 20px; }
 
 /* ---------- formularios ---------- */
@@ -124,25 +186,39 @@ input, select{ font-family:inherit; }
 @media (max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
 label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
 label .opt{ font-weight:400; color:var(--text-muted); }
-input[type=text], input[type=email], input[type=search]{
-  width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
-  background:#fff; color:var(--text); font-size:15px;
+input[type=text], input[type=email], input[type=search], input[type=date], input[type=time],
+input[type=password], select, textarea{
+  width:100%; padding:11px 13px; border-radius:9px; border:1px solid #CBD6C4;
+  background:#fff; color:var(--text); font-size:15px; font-family:inherit; transition:border-color .15s, box-shadow .15s;
 }
-input:focus, select:focus, button:focus-visible{
-  outline:2px solid var(--sena-verde); outline-offset:1px;
+input[type=text]:hover, input[type=email]:hover, input[type=search]:hover,
+input[type=date]:hover, input[type=time]:hover, input[type=password]:hover,
+select:hover, textarea:hover{ border-color:#A9BCA0; }
+input:disabled, button:disabled{ cursor:not-allowed; }
+input:disabled{ background:var(--sena-gris-claro); color:var(--text-muted); }
+textarea{ resize:vertical; line-height:1.55; min-height:150px; }
+input[type=checkbox]{ width:17px; height:17px; margin:0; accent-color:var(--sena-verde); cursor:pointer; vertical-align:middle; }
+input:focus, select:focus, textarea:focus{
+  outline:none; border-color:var(--sena-verde); box-shadow:0 0 0 3px rgba(57,169,0,0.2);
 }
+button:focus-visible, a:focus-visible{ outline:2px solid var(--sena-verde); outline-offset:2px; }
 .field-error{ color:var(--danger); font-size:12.5px; margin-top:5px; }
 .form-actions{ margin-top:22px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
 .btn{
   display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:9px;
-  border:1px solid transparent; font-size:14.5px; font-weight:600; cursor:pointer; transition:filter .1s;
+  border:1px solid transparent; font-size:14.5px; font-weight:600; cursor:pointer;
+  transition:background-color .15s, border-color .15s, color .15s;
   text-decoration:none;
 }
-.btn:hover{ filter:brightness(0.95); }
+/* Íconos de línea (sin relleno), como indica el manual. */
+.btn .icon{ width:20px; height:20px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .btn-primary{ background:var(--sena-verde); color:#fff; }
-.btn-outline{ background:transparent; border-color:var(--border); color:var(--text); }
-.btn-out{ background:var(--sena-oro); color:#3a2c00; }
+.btn-primary:hover{ background:var(--sena-verde-oscuro); }
+.btn-outline{ background:#fff; border-color:#CBD6C4; color:var(--text); }
+.btn-outline:hover{ border-color:var(--sena-verde); color:var(--accent-dark); }
+.btn-out{ background:var(--sena-oro); color:#3A2C00; }
+.btn-out:hover{ background:#E8B300; }
 .btn:disabled{ opacity:0.5; cursor:not-allowed; }
 .btn-sm{ padding:6px 12px; font-size:13px; }
 .btn-block{ width:100%; justify-content:center; padding:14px 18px; font-size:16px; }
@@ -151,38 +227,62 @@ input:focus, select:focus, button:focus-visible{
 /* ---------- portal público (ingreso.php) ---------- */
 .portal-card{ padding:48px 44px; }
 @media (max-width:520px){ .portal-card{ padding:32px 24px; } }
-.portal-card .section-title{ font-size:24px; }
+.portal-card .section-title{ font-size:26px; }
 .portal-card .section-sub{ font-size:15px; }
-.portal-options{ display:flex; flex-direction:column; gap:18px; margin:32px 0 6px; }
+.portal-options{ display:flex; flex-direction:column; gap:16px; margin:32px 0 6px; }
 .portal-hint{ margin-top:28px; padding-top:24px; border-top:1px solid var(--border); }
 
-.banner{ padding:12px 16px; border-radius:10px; font-size:14px; margin-bottom:18px; }
-.banner.info{ background:var(--surface-2); color:var(--text); border:1px solid var(--border); }
-.banner.error{ background:var(--danger-bg); color:var(--danger); }
-.banner.success{ background:var(--status-in-bg); color:var(--status-in); }
-.banner.warning{ background:var(--status-out-bg); color:var(--status-out); }
+.banner{ padding:12px 16px; border-radius:10px; font-size:14px; margin-bottom:18px; border-left:4px solid transparent; }
+.banner.info{ background:var(--surface-2); color:var(--text); border-left-color:var(--sena-azul); }
+.banner.error{ background:var(--danger-bg); color:var(--danger); border-left-color:var(--danger); }
+.banner.success{ background:var(--status-in-bg); color:var(--status-in); border-left-color:var(--sena-verde); }
+.banner.warning{ background:var(--status-out-bg); color:var(--status-out); border-left-color:var(--sena-oro); }
+
+/* ---------- resumen del inicio (index.php) ---------- */
+.stat-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+@media (max-width:640px){ .stat-grid{ grid-template-columns:1fr; } }
+.stat-card{
+  border:1px solid var(--border); border-radius:12px; padding:16px 18px; background:#fff;
+  border-top:4px solid var(--c);
+}
+.stat-card .label{ font-size:13px; font-weight:600; color:var(--text-muted); }
+.stat-card .value{ font-size:34px; font-weight:700; line-height:1.1; margin-top:6px; color:var(--sena-azul); font-family:var(--font); }
+.stat-card.in{ --c:var(--sena-verde); }
+.stat-card.out{ --c:var(--sena-oro); }
+.stat-card.total{ --c:var(--sena-violeta); }
 
 /* ---------- tarjeta / carné con QR ---------- */
 .badge-wrap{ display:flex; justify-content:center; padding:12px 0 8px; }
 .badge{
-  width:340px; border-radius:18px; overflow:hidden; background:var(--surface);
+  width:340px; max-width:100%; border-radius:18px; overflow:hidden; background:var(--surface);
   border:1px solid var(--border); box-shadow:var(--shadow);
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
 }
 .badge-head{
-  background:linear-gradient(135deg, var(--sena-verde), var(--sena-verde-oscuro));
-  color:#fff; padding:14px 18px;
+  background:var(--sena-verde); color:#fff; padding:14px 18px;
+  display:flex; align-items:center; gap:12px;
 }
-.badge-head .org{ font-size:11px; letter-spacing:1.5px; text-transform:uppercase; opacity:0.95; font-weight:700; }
-.badge-head .ev{ font-family:"Archivo",sans-serif; font-weight:800; font-size:16px; margin-top:2px; }
-.badge-body{ padding:20px 18px; text-align:center; }
+.badge-head .badge-logo{ width:40px; height:40px; object-fit:contain; flex-shrink:0; }
+.badge-head .org{ font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700; }
+.badge-head .ev{ font-weight:700; font-size:18px; line-height:1.2; margin-top:1px; }
+.badge-body{ position:relative; padding:20px 18px; text-align:center; }
+/* Marca de agua del carné: el símbolo SENA detrás de los datos. El QR se
+   dibuja con fondo blanco propio, así que no afecta su lectura. */
+.badge-body::before{
+  content:""; position:absolute; pointer-events:none;
+  left:50%; top:50%; width:240px; aspect-ratio:1; transform:translate(-50%, -50%);
+  background:var(--logo-verde) no-repeat center / contain;
+  opacity:0.06;
+}
+.badge-body > *{ position:relative; }
 .badge-qr{ display:flex; justify-content:center; margin-bottom:14px; }
-.badge-qr img, .badge-qr canvas{ border-radius:8px; }
-.badge-name{ font-family:"Archivo",sans-serif; font-weight:700; font-size:18px; line-height:1.25; }
-.badge-cedula{ font-family:"JetBrains Mono",monospace; font-size:14px; color:var(--text-muted); margin-top:4px; }
+.badge-qr img, .badge-qr canvas{ border-radius:8px; background:#fff; padding:6px; }
+.badge-name{ font-weight:700; font-size:18px; line-height:1.25; color:var(--sena-azul); }
+.badge-cedula{ font-family:var(--font-mono); font-size:14px; color:var(--text-muted); margin-top:4px; }
 .badge-empresa{ font-size:12.5px; color:var(--text-muted); margin-top:6px; }
 .badge-foot{
   border-top:1px dashed var(--border); padding:10px 18px; font-size:11px; color:var(--text-muted);
-  display:flex; justify-content:space-between;
+  display:flex; justify-content:space-between; gap:10px;
 }
 
 /* ---------- control de acceso (control.php) ----------
@@ -200,10 +300,12 @@ input:focus, select:focus, button:focus-visible{
    rejilla ya separa filas y columnas) y hacía que la tarjeta más a la
    derecha de cada fila quedara más baja que su vecina. */
 .control-grid > .card{ margin-top:0; }
+#entrada{ border-top:4px solid var(--sena-verde); }
+#salida{ border-top:4px solid var(--sena-oro); }
 @media (max-width:860px){ .control-grid{ grid-template-columns:1fr; } }
 
 .lookup-row{ display:flex; gap:10px; flex-wrap:wrap; }
-.lookup-row input{ flex:1; min-width:200px; font-size:20px; padding:14px; font-family:"JetBrains Mono",monospace; letter-spacing:1px; }
+.lookup-row input{ flex:1; min-width:200px; font-size:20px; padding:14px; font-family:var(--font-mono); letter-spacing:1px; }
 .scan-area{ margin-top:16px; }
 .scan-video-wrap{ position:relative; max-width:360px; border-radius:12px; overflow:hidden; border:1px solid var(--border); }
 .scan-video-wrap video{ width:100%; display:block; }
@@ -211,7 +313,7 @@ input:focus, select:focus, button:focus-visible{
 
 .attendee-panel{ display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
 .attendee-info{ flex:1; min-width:220px; }
-.attendee-info .name{ font-size:19px; font-weight:700; font-family:"Archivo",sans-serif; }
+.attendee-info .name{ font-size:19px; font-weight:700; color:var(--sena-azul); }
 .attendee-info .meta{ color:var(--text-muted); font-size:14px; margin-top:4px; }
 .status-chip{
   display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px;
@@ -219,20 +321,22 @@ input:focus, select:focus, button:focus-visible{
 }
 .status-chip.in{ background:var(--status-in-bg); color:var(--status-in); }
 .status-chip.out{ background:var(--status-out-bg); color:var(--status-out); }
+td .status-chip{ margin-top:0; border-radius:4px; padding:2px 8px; font-size:12.5px; font-weight:600; }
+
+.type-in{ color:var(--status-in); font-weight:600; }
+.type-out{ color:var(--status-out); font-weight:600; }
 
 .history-list{ margin-top:16px; border-top:1px solid var(--border); padding-top:12px; }
 .history-row{ display:flex; justify-content:space-between; font-size:13px; padding:5px 0; color:var(--text-muted); }
-.history-row .type-in{ color:var(--status-in); font-weight:600; }
-.history-row .type-out{ color:var(--status-out); font-weight:600; }
 
 .activity-feed{ margin-top:14px; }
 .activity-row{
-  display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);
   font-size:13.5px;
 }
 .activity-row:last-child{ border-bottom:none; }
 .activity-row .who{ font-weight:600; }
-.activity-row .when{ color:var(--text-muted); font-family:"JetBrains Mono",monospace; font-size:12px; }
+.activity-row .when{ color:var(--text-muted); font-family:var(--font-mono); font-size:12px; white-space:nowrap; }
 
 /* ---------- tablas ----------
    .table-wrap envuelve cualquier tabla (permite scroll horizontal en
@@ -243,12 +347,26 @@ input:focus, select:focus, button:focus-visible{
    adentro/afuera" en control.php) usan la clase modificadora
    .table-wrap--compact, con alto fijo y scroll propio — ver el bloque
    de abajo. */
-.table-wrap{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); }
-.table-wrap table{ width:100%; border-collapse:collapse; min-width:640px; }
-.table-wrap th, .table-wrap td{ text-align:left; padding:11px 14px; font-size:13.5px; border-bottom:1px solid var(--border); }
-.table-wrap th{ color:var(--text-muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.4px; background:var(--surface-2); }
+.table-wrap{ overflow-x:auto; }
+.table-wrap table{ width:100%; border-collapse:collapse; min-width:640px; font-variant-numeric:tabular-nums; }
+.table-wrap th, .table-wrap td{ text-align:left; padding:10px 12px; font-size:14px; }
+/* Encabezado sobrio: texto normal (sin mayúsculas ni fondo), separado
+   del cuerpo por una sola línea. Se dibuja con box-shadow en vez de
+   border para que no desaparezca cuando el encabezado queda fijo. */
+.table-wrap th{
+  font-weight:600; font-size:13px; color:var(--text-muted); background:#fff;
+  box-shadow:inset 0 -1px 0 #B9C2BC; white-space:nowrap;
+}
+.table-wrap td{ border-bottom:1px solid #ECEFEC; color:var(--text); }
+.table-wrap td:first-child{ font-weight:500; }
+.table-wrap tbody tr:hover td{ background:var(--sena-gris-claro); }
 .table-wrap tr:last-child td{ border-bottom:none; }
-.table-wrap td.cedula-cell{ font-family:"JetBrains Mono",monospace; }
+/* Cédulas y fechas en la misma letra del resto, con cifras de ancho fijo
+   (tabular-nums) para que se alineen sin parecer código. */
+.table-wrap td.cedula-cell, .table-wrap td.mono{ font-family:var(--font); color:var(--text-muted); }
+.table-wrap td:last-child:has(.table-link){ text-align:right; }
+.table-link{ font-weight:600; text-decoration:none; white-space:nowrap; }
+.table-link:hover{ text-decoration:underline; }
 
 /* Las dos tablas de estado de control.php (quién está adentro / quién ya
    salió) van en recuadros de ALTO FIJO, iguales entre sí sin importar
@@ -258,21 +376,177 @@ input:focus, select:focus, button:focus-visible{
    la del otro lado. */
 .table-wrap--compact{ height:280px; overflow-y:auto; }
 .table-wrap--compact table{ width:100%; min-width:0; }
-.table-wrap--compact th, .table-wrap--compact td{ padding:12px 20px; font-size:15px; }
-.table-wrap--compact th{ font-size:12.5px; position:sticky; top:0; }
+.table-wrap--compact th{ position:sticky; top:0; z-index:1; }
 
 .empty-state{ text-align:center; padding:40px 20px; color:var(--text-muted); }
+.text-muted{ color:var(--text-muted); }
 
-/* ---------- pie de página de las pantallas públicas ---------- */
-.footer-public{
-  background:var(--sena-azul); color:#cfe8d8; padding:22px 24px; margin-top:48px;
+/* ---------- fecha y horario del evento ---------- */
+.pill.abierto .dot{ background:var(--sena-verde); }
+.pill.cerrado .dot{ background:#FF8F80; }
+.field-hint{ color:var(--text-muted); font-size:13px; margin:12px 0 0; }
+.form-actions .status-chip{ margin-top:0; }
+.status-chip.error{ background:var(--danger-bg); color:var(--danger); }
+.evento-fecha{
+  display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border-radius:8px;
+  background:var(--surface-2); color:var(--sena-azul); font-weight:600; font-size:14px;
+}
+.evento-fecha .icon{ width:18px; height:18px; fill:none; stroke:var(--sena-verde-oscuro); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+
+/* ---------- reportes (reportes.php) ---------- */
+.filtro-dia{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+.filtro-dia input{ width:auto; min-width:190px; }
+.stat-grid--4{ grid-template-columns:repeat(4, 1fr); }
+@media (max-width:860px){ .stat-grid--4{ grid-template-columns:repeat(2, 1fr); } }
+.stat-card.azul{ --c:var(--sena-azul-claro); }
+.table-wrap .col-check{ width:40px; padding-right:0; }
+.table-wrap td.col-nombre{ font-weight:500; }
+.celda-detalle{ font-size:12.5px; color:var(--text-muted); margin-top:3px; }
+.aviso-form{ margin-top:22px; padding-top:20px; border-top:1px solid var(--border); }
+.por-tipo{ margin:14px 0 0; font-size:14px; color:var(--text); }
+
+/* ---------- sesión de portería (barra superior del panel) ---------- */
+.topbar-derecha{ display:flex; align-items:center; gap:14px 18px; flex-wrap:wrap; }
+.sesion{ display:flex; align-items:center; gap:12px; padding-left:18px; border-left:1px solid rgba(255,255,255,0.2); }
+.sesion-datos{ display:flex; flex-direction:column; line-height:1.25; }
+.sesion-nombre{ font-size:13.5px; font-weight:600; color:#fff; }
+.sesion-punto{ font-size:12px; color:#D5ECC8; }
+.sesion-salir{
+  font-size:13px; font-weight:600; color:#fff; text-decoration:none; white-space:nowrap;
+  padding:6px 12px; border:1px solid rgba(255,255,255,0.35); border-radius:8px;
+}
+.sesion-salir:hover{ background:rgba(255,255,255,0.1); }
+@media (max-width:640px){ .sesion{ padding-left:0; border-left:none; } }
+.topbar-link{ color:#fff; font-size:14px; font-weight:600; text-decoration:none; }
+.topbar-link:hover{ text-decoration:underline; }
+
+/* ---------- horario en el control de acceso ---------- */
+.horario-bar{
+  display:flex; align-items:center; gap:12px 20px; flex-wrap:wrap;
+  padding:14px 18px; margin-bottom:20px; border-radius:12px;
+  background:var(--surface-2); border:1px solid var(--border); border-left:5px solid var(--sena-verde);
+}
+.horario-bar.cerrado{ background:var(--status-out-bg); border-color:#F1DE9E; border-left-color:var(--sena-oro); }
+.horario-bar > .icon{ width:28px; height:28px; flex-shrink:0; fill:none; stroke:var(--sena-azul); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.horario-texto{ display:flex; flex-direction:column; flex:1; min-width:200px; }
+.horario-etiqueta{ font-size:12px; font-weight:600; color:var(--text-muted); }
+.horario-texto strong{ font-size:16px; color:var(--sena-azul); }
+.horario-link{ font-size:13.5px; margin-left:6px; }
+.horario-estado{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13.5px; }
+.horario-estado .status-chip{ margin-top:0; }
+.control-grid > .card--ancha{ grid-column:1 / -1; }
+
+/* ---------- tipo de asistente (formulario de registro) ---------- */
+fieldset{ border:none; margin:0; padding:0; min-width:0; }
+legend{ font-size:13px; font-weight:600; margin-bottom:8px; padding:0; }
+.opciones{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+@media (max-width:520px){ .opciones{ grid-template-columns:repeat(2, 1fr); } }
+.opcion{ position:relative; margin:0; font-weight:500; cursor:pointer; }
+.opcion input{ position:absolute; opacity:0; width:1px; height:1px; }
+.opcion span{
+  display:block; text-align:center; padding:11px 10px; border:1px solid #CBD6C4; border-radius:9px;
+  font-size:14.5px; background:#fff; transition:border-color .15s, background-color .15s;
+}
+.opcion:hover span{ border-color:var(--sena-verde); }
+.opcion input:checked + span{
+  border-color:var(--sena-verde); background:var(--status-in-bg); color:var(--sena-verde-oscuro);
+  font-weight:600; box-shadow:inset 0 0 0 1px var(--sena-verde);
+}
+.opcion input:focus-visible + span{ outline:2px solid var(--sena-verde); outline-offset:2px; }
+.badge-tipo{
+  display:inline-block; margin-bottom:8px; padding:3px 10px; border-radius:4px;
+  font-size:11.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+  color:var(--sena-verde-oscuro); background:var(--status-in-bg);
+}
+
+/* ---------- página de inicio (index.php) ---------- */
+.inicio-grid{
+  display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(0, 1fr); gap:56px;
+  align-items:start; max-width:1100px; margin:16px auto 0;
+}
+@media (max-width:900px){ .inicio-grid{ grid-template-columns:1fr; gap:32px; } }
+.eyebrow-verde{ display:block; font-size:12px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:var(--sena-verde-oscuro); }
+.inicio-titulo{ font-size:clamp(28px, 4vw, 40px); line-height:1.12; color:var(--sena-azul); margin-top:10px; font-weight:800; }
+.inicio-lead{ font-size:16.5px; line-height:1.6; margin:16px 0 0; max-width:56ch; }
+.inicio-evento{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  margin-top:24px; padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+}
+.inicio-evento > div{ display:flex; flex-direction:column; }
+.inicio-evento strong{ color:var(--sena-azul); font-size:16px; }
+.inicio-evento .status-chip{ margin-top:0; }
+.inicio-pasos{ list-style:none; margin:26px 0 0; padding:0; display:flex; flex-direction:column; gap:18px; }
+.inicio-pasos li{ display:flex; gap:14px; align-items:flex-start; }
+.inicio-pasos .icon{ width:26px; height:26px; flex-shrink:0; margin-top:2px; fill:none; stroke:var(--sena-verde); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.inicio-pasos strong{ display:block; color:var(--sena-azul); }
+.inicio-pasos span{ color:var(--text-muted); font-size:14.5px; }
+.acceso-card{
+  background:#fff; border:1px solid var(--border); border-top:4px solid var(--sena-verde);
+  border-radius:var(--radius); padding:6px 28px 28px;
+}
+@media (max-width:520px){ .acceso-card{ padding:6px 18px 22px; } }
+.acceso-tabs{ display:flex; border-bottom:1px solid var(--border); margin:0 -10px 22px; }
+.acceso-tabs button{
+  flex:1; border:none; background:none; padding:14px 8px; margin-bottom:-1px; cursor:pointer;
+  font-size:15px; font-weight:600; color:var(--text-muted); border-bottom:3px solid transparent;
+}
+.acceso-tabs button:hover{ color:var(--accent-dark); }
+.acceso-tabs button[aria-selected="true"]{ color:var(--sena-verde-oscuro); border-bottom-color:var(--sena-verde); }
+.acceso-titulo{ font-size:19px; color:var(--sena-azul); }
+.form-grid.una-columna{ grid-template-columns:1fr; }
+input.input-codigo{ font-family:var(--font-mono); letter-spacing:2px; text-transform:uppercase; }
+
+/* ---------- códigos de portería (porteria.php) ---------- */
+.codigo-nuevo{
+  display:flex; align-items:flex-end; gap:14px 16px; flex-wrap:wrap;
+  padding:16px 18px; margin-bottom:22px; border:2px dashed var(--sena-verde); border-radius:12px;
+  background:var(--surface-2);
+}
+.codigo-nuevo > div{ display:flex; flex-direction:column; gap:4px; flex:1; min-width:200px; }
+.codigo-nuevo input.codigo-grande{
+  font-family:var(--font-mono); font-size:28px; font-weight:700; letter-spacing:4px; color:var(--sena-azul);
+  background:transparent; border:none; padding:0; box-shadow:none;
+}
+.codigo-nuevo > .codigo-enlace{ flex-basis:100%; }
+.fila-copiar{ display:flex; gap:8px; }
+.fila-copiar input{ flex:1; min-width:0; font-size:13.5px; }
+.table-wrap td.codigo-celda{ font-family:var(--font-mono); font-weight:700; letter-spacing:1.5px; color:var(--sena-azul); white-space:nowrap; }
+.check-linea{ display:flex; align-items:center; gap:9px; font-weight:500; font-size:14px; margin:0; cursor:pointer; }
+.acciones-fila{ white-space:nowrap; text-align:right; }
+.acciones-fila form{ display:inline; }
+.boton-enlace{
+  border:none; background:none; padding:0 0 0 14px; cursor:pointer;
+  font:inherit; font-size:13.5px; font-weight:600; color:var(--accent-dark);
+}
+.boton-enlace:hover{ text-decoration:underline; }
+.boton-enlace.peligro{ color:var(--danger); }
+.status-chip.neutro{ background:var(--sena-gris-claro); color:var(--text-muted); }
+
+/* ---------- pie de página (público y panel) ---------- */
+.site-footer{
+  position:relative; overflow:hidden;
+  background:var(--sena-azul); color:#D5ECC8; padding:22px 24px;
+  border-top:4px solid var(--sena-verde);
   display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
 }
-.footer-public .brand{ display:flex; align-items:center; gap:12px; }
-.brand-text-sm{ font-size:12.5px; line-height:1.6; color:#cfe8d8; }
-.footer-public .footer-right{ text-align:right; }
+.site-footer::after{
+  content:""; position:absolute; pointer-events:none;
+  left:-40px; bottom:-60px; width:200px; aspect-ratio:1;
+  background:var(--logo-blanco) no-repeat center / contain;
+  opacity:0.06;
+}
+.site-footer > *{ position:relative; z-index:1; }
+.site-footer .brand{ display:flex; align-items:center; gap:14px; }
+.site-footer .brand-logo{ width:42px; height:42px; }
+.brand-text-sm{ font-size:12.5px; line-height:1.6; color:#D5ECC8; }
+.brand-text-sm strong{ color:#fff; font-weight:600; }
+.site-footer a{ color:#fff; font-weight:600; text-decoration:none; }
+.site-footer a:hover{ text-decoration:underline; }
+.site-footer .footer-right{ text-align:right; }
+@media (max-width:520px){ .site-footer .footer-right{ text-align:left; } }
 
 @media print{
+  body::before{ display:none; }
   body *{ visibility:hidden; }
   .card-print, .card-print *{ visibility:visible; }
   .card-print{ position:fixed; top:0; left:0; right:0; margin:40px auto; box-shadow:none; }

@@ -1,28 +1,41 @@
 <?php
 /**
- * Control de acceso: entrada y salida en una sola pantalla, dividida en
- * dos columnas — izquierda = entrada, derecha = salida — para que quien
- * atiende la puerta no tenga que cambiar de pestaña entre una acción y
- * la otra. Cada formulario postea a esta misma página con un campo
- * oculto "accion" que dice cuál de las dos se está registrando.
- * Abajo, un reporte grande con los movimientos más recientes (el
- * historial completo, con búsqueda, sigue en historial.php).
+ * Control de acceso: la pantalla principal de la portería. Arriba muestra
+ * el horario del evento y si el ingreso está abierto; debajo, los
+ * formularios de entrada y salida (según el punto de control que eligió
+ * el portero al iniciar sesión) y quién está adentro / afuera. Cada
+ * movimiento queda a nombre del portero con la sesión abierta. Fuera del
+ * horario no se registran entradas (las salidas sí), y la página se
+ * recarga sola cuando el ingreso abre o cierra.
+ * Abajo, un reporte con los movimientos más recientes (el historial
+ * completo, con búsqueda, sigue en historial.php).
  */
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/panel.php';
 
+$usuario = usuarioActual();
 $resultadoEntrada = null;
 $resultadoSalida = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
     $cedula = soloDigitos($_POST['cedula'] ?? '');
-    if ($cedula !== '' && $accion === 'entrada') {
-        $resultadoEntrada = intentarMovimiento($conn, $cedula, 'entrada');
-    } elseif ($cedula !== '' && $accion === 'salida') {
-        $resultadoSalida = intentarMovimiento($conn, $cedula, 'salida');
+    // Solo se registra lo que permite el punto de control de la sesión.
+    if ($cedula !== '' && in_array($accion, ['entrada', 'salida'], true) && puedeRegistrar($accion)) {
+        $resultado = intentarMovimiento($conn, $cedula, $accion, $usuario['id']);
+        if ($accion === 'entrada') {
+            $resultadoEntrada = $resultado;
+        } else {
+            $resultadoSalida = $resultado;
+        }
     }
 }
+
+$horario = horarioEvento($conn);
+$ingreso = estadoHorario($horario);
+$recargarEn = segundosHastaCambioHorario($horario);
+$bloqueoEntrada = $ingreso['abierto'] ? '' : ' disabled';
+$verEntrada = puedeRegistrar('entrada');
+$verSalida = puedeRegistrar('salida');
 
 $adentro = listarPorEstado($conn, 'dentro');
 $fuera = listarPorEstado($conn, 'fuera');
@@ -34,18 +47,44 @@ $wide = true;
 require __DIR__ . '/includes/layout_top.php';
 ?>
 
+<div class="horario-bar <?= $ingreso['abierto'] ? 'abierto' : 'cerrado' ?>"<?= $recargarEn ? ' data-recargar-en="' . $recargarEn . '"' : '' ?>>
+  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+  <div class="horario-texto">
+    <span class="horario-etiqueta">Horario del evento</span>
+    <?php if (horarioConfigurado($horario)): ?>
+      <strong><?= h(textoHorario($horario)) ?></strong>
+    <?php else: ?>
+      <strong>Sin fecha ni horario definidos <a class="horario-link" href="evento.php">Configurar</a></strong>
+    <?php endif; ?>
+  </div>
+  <div class="horario-estado">
+    <?php if ($ingreso['abierto']): ?>
+      <span class="status-chip in">Ingreso abierto</span>
+      <?php if ($horario['hora_fin'] !== ''): ?><span class="text-muted">Cierra a las <?= h($horario['hora_fin']) ?></span><?php endif; ?>
+    <?php else: ?>
+      <span class="status-chip out">Ingreso cerrado</span>
+      <span class="text-muted"><?= h(ucfirst($ingreso['motivo'])) ?></span>
+    <?php endif; ?>
+  </div>
+</div>
+
 <div class="control-grid">
 
-    <div class="card" id="entrada">
+  <?php if ($verEntrada): ?>
+    <div class="card<?= $verSalida ? '' : ' card--ancha' ?>" id="entrada">
       <h2 class="section-title">Registrar entrada</h2>
-      <p class="section-sub">Escanea el QR de la tarjeta — se registra al instante — o escribe la cédula y da clic en "Registrar entrada".</p>
+      <?php if ($ingreso['abierto']): ?>
+        <p class="section-sub">Escanea el QR de la tarjeta — se registra al instante — o escribe la cédula y da clic en "Registrar entrada".</p>
+      <?php else: ?>
+        <div class="banner warning" style="margin-top:12px;">No se pueden registrar entradas: <?= h($ingreso['motivo']) ?> Las salidas sí se siguen registrando.</div>
+      <?php endif; ?>
 
       <form method="post" id="form_entrada">
         <input type="hidden" name="accion" value="entrada">
         <div class="lookup-row">
-          <input type="text" id="cedula_entrada" name="cedula" inputmode="numeric" placeholder="Número de cédula" autocomplete="off">
-          <button type="submit" class="btn btn-primary">Registrar entrada</button>
-          <button type="button" class="btn btn-outline" id="btnEscanear_entrada" onclick="iniciarEscaneo('entrada')">Escanear QR</button>
+          <input type="text" id="cedula_entrada" name="cedula" inputmode="numeric" placeholder="Número de cédula" autocomplete="off"<?= $bloqueoEntrada ?>>
+          <button type="submit" class="btn btn-primary"<?= $bloqueoEntrada ?>>Registrar entrada</button>
+          <button type="button" class="btn btn-outline" id="btnEscanear_entrada" onclick="iniciarEscaneo('entrada')"<?= $bloqueoEntrada ?>>Escanear QR</button>
         </div>
       </form>
 
@@ -67,17 +106,19 @@ require __DIR__ . '/includes/layout_top.php';
           <div class="attendee-panel" style="margin-top:8px;">
             <div class="attendee-info">
               <div class="name"><?= h($a['nombre']) ?></div>
-              <div class="meta mono">C.C. <?= h($a['cedula']) ?></div>
+              <div class="meta mono">C.C. <?= h($a['cedula']) ?> · <?= h(tipoAsistente($a['tipo'] ?? '', $a['tipo_otro'] ?? '')) ?></div>
               <span class="status-chip <?= $enDentro ? 'in' : 'out' ?>"><?= $enDentro ? '● Dentro del evento' : '○ Fuera del evento' ?></span>
             </div>
           </div>
         <?php endif; ?>
       <?php endif; ?>
     </div>
+  <?php endif; ?>
 
-    <div class="card" id="salida">
+  <?php if ($verSalida): ?>
+    <div class="card<?= $verEntrada ? '' : ' card--ancha' ?>" id="salida">
       <h2 class="section-title">Registrar salida</h2>
-      <p class="section-sub">Escanea el QR de la tarjeta — se registra al instante — o escribe la cédula y da clic en "Registrar salida".</p> <br>
+      <p class="section-sub">Escanea el QR de la tarjeta — se registra al instante — o escribe la cédula y da clic en "Registrar salida".</p>
 
       <form method="post" id="form_salida">
         <input type="hidden" name="accion" value="salida">
@@ -106,57 +147,58 @@ require __DIR__ . '/includes/layout_top.php';
           <div class="attendee-panel" style="margin-top:8px;">
             <div class="attendee-info">
               <div class="name"><?= h($a['nombre']) ?></div>
-              <div class="meta mono">C.C. <?= h($a['cedula']) ?></div>
+              <div class="meta mono">C.C. <?= h($a['cedula']) ?> · <?= h(tipoAsistente($a['tipo'] ?? '', $a['tipo_otro'] ?? '')) ?></div>
               <span class="status-chip <?= $enDentro ? 'in' : 'out' ?>"><?= $enDentro ? '● Dentro del evento' : '○ Fuera del evento' ?></span>
             </div>
           </div>
         <?php endif; ?>
       <?php endif; ?>
     </div>
+  <?php endif; ?>
 
-    <div class="card">
-      <h2 class="section-title" style="font-size:16px;">Están adentro ahora (<?= count($adentro) ?>)</h2>
-      <?php if (!$adentro): ?>
-        <div class="empty-state" style="padding:16px;">Nadie está adentro en este momento.</div>
-      <?php else: ?>
-        <div class="table-wrap table-wrap--compact">
-          <table>
-            <thead><tr><th>Nombre</th><th>Cédula</th><th>Hora de entrada</th></tr></thead>
-            <tbody>
-              <?php foreach ($adentro as $a): ?>
-                <tr>
-                  <td><?= h($a['nombre']) ?></td>
-                  <td class="cedula-cell"><?= h($a['cedula']) ?></td>
-                  <td class="mono"><?= $a['ultima_fecha'] ? fmtFecha($a['ultima_fecha']) : '—' ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      <?php endif; ?>
-    </div>
+  <div class="card">
+    <h2 class="section-title" style="font-size:16px;">Están adentro ahora (<?= count($adentro) ?>)</h2>
+    <?php if (!$adentro): ?>
+      <div class="empty-state" style="padding:16px;">Nadie está adentro en este momento.</div>
+    <?php else: ?>
+      <div class="table-wrap table-wrap--compact">
+        <table>
+          <thead><tr><th>Nombre</th><th>Cédula</th><th>Hora de entrada</th></tr></thead>
+          <tbody>
+            <?php foreach ($adentro as $a): ?>
+              <tr>
+                <td><?= h($a['nombre']) ?></td>
+                <td class="cedula-cell"><?= h($a['cedula']) ?></td>
+                <td class="mono"><?= $a['ultima_fecha'] ? fmtFecha($a['ultima_fecha']) : '—' ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
 
-    <div class="card">
-      <h2 class="section-title" style="font-size:16px;">Ya salieron / no han entrado (<?= count($fuera) ?>)</h2>
-      <?php if (!$fuera): ?>
-        <div class="empty-state" style="padding:16px;">No hay nadie afuera en este momento.</div>
-      <?php else: ?>
-        <div class="table-wrap table-wrap--compact">
-          <table>
-            <thead><tr><th>Nombre</th><th>Cédula</th><th>Último movimiento</th></tr></thead>
-            <tbody>
-              <?php foreach ($fuera as $a): ?>
-                <tr>
-                  <td><?= h($a['nombre']) ?></td>
-                  <td class="cedula-cell"><?= h($a['cedula']) ?></td>
-                  <td class="mono"><?= $a['ultima_fecha'] ? fmtFecha($a['ultima_fecha']) : 'Nunca ha entrado' ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-      <?php endif; ?>
-    </div>
+  <div class="card">
+    <h2 class="section-title" style="font-size:16px;">Ya salieron / no han entrado (<?= count($fuera) ?>)</h2>
+    <?php if (!$fuera): ?>
+      <div class="empty-state" style="padding:16px;">No hay nadie afuera en este momento.</div>
+    <?php else: ?>
+      <div class="table-wrap table-wrap--compact">
+        <table>
+          <thead><tr><th>Nombre</th><th>Cédula</th><th>Último movimiento</th></tr></thead>
+          <tbody>
+            <?php foreach ($fuera as $a): ?>
+              <tr>
+                <td><?= h($a['nombre']) ?></td>
+                <td class="cedula-cell"><?= h($a['cedula']) ?></td>
+                <td class="mono"><?= $a['ultima_fecha'] ? fmtFecha($a['ultima_fecha']) : 'Nunca ha entrado' ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
 
 </div>
 
@@ -168,15 +210,16 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Nombre</th><th>Cédula</th><th>Empresa</th></tr></thead>
+        <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Nombre</th><th>Tipo</th><th>Cédula</th><th>Registró</th></tr></thead>
         <tbody>
           <?php foreach ($movimientos as $m): ?>
             <tr>
               <td class="mono"><?= fmtFecha($m['fecha']) ?></td>
               <td><span class="<?= $m['tipo'] === 'entrada' ? 'type-in' : 'type-out' ?>"><?= $m['tipo'] === 'entrada' ? 'Entrada' : 'Salida' ?></span></td>
               <td><?= h($m['nombre']) ?></td>
+              <td><?= h(tipoAsistente($m['tipo_asistente'], $m['tipo_otro'])) ?></td>
               <td class="cedula-cell"><?= h($m['cedula']) ?></td>
-              <td><?= h($m['empresa'] !== '' ? $m['empresa'] : '—') ?></td>
+              <td><?= h($m['portero'] ?? '—') ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -196,7 +239,7 @@ require __DIR__ . '/includes/layout_top.php';
         <div class="activity-row">
           <span class="who"><?= h($av['nombre'] ?? $av['cedula']) ?> <span class="mono" style="color:var(--text-muted);font-weight:400;">· <?= h($av['cedula']) ?></span> —
             <span class="type-out"><?= h(etiquetaAviso($av['tipo'])) ?></span></span>
-          <span class="when"><?= fmtFecha($av['fecha']) ?></span>
+          <span class="when"><?= fmtFecha($av['fecha']) ?><?= $av['portero'] ? ' · ' . h($av['portero']) : '' ?></span>
         </div>
       <?php endforeach; ?>
     <?php endif; ?>

@@ -10,11 +10,86 @@ document.addEventListener('DOMContentLoaded', function () {
         width: 176,
         height: 176,
         correctLevel: QRCode.CorrectLevel.M,
-        colorDark: '#14201A',
+        colorDark: '#00304D',
         colorLight: '#ffffff'
       });
     } catch (e) {}
   });
+});
+
+// Casilla "seleccionar a todos" (reportes.php): data-check-todos lleva el
+// name de las casillas que controla y data-conteo el id donde se muestra
+// cuántas personas hay seleccionadas.
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-check-todos]').forEach(function (todos) {
+    var casillas = document.querySelectorAll('input[name="' + todos.getAttribute('data-check-todos') + '"]');
+    var conteo = document.getElementById(todos.getAttribute('data-conteo'));
+    function actualizar() {
+      var marcadas = 0;
+      casillas.forEach(function (c) { if (c.checked) marcadas++; });
+      todos.checked = marcadas === casillas.length;
+      todos.indeterminate = marcadas > 0 && marcadas < casillas.length;
+      if (conteo) conteo.textContent = marcadas === 1 ? '1 persona seleccionada' : marcadas + ' personas seleccionadas';
+    }
+    todos.addEventListener('change', function () {
+      casillas.forEach(function (c) { c.checked = todos.checked; });
+      actualizar();
+    });
+    casillas.forEach(function (c) { c.addEventListener('change', actualizar); });
+    actualizar();
+  });
+
+  // Formularios con data-enviando: al enviarlos se desactiva el botón y
+  // se muestra ese texto, para que no se envíe dos veces mientras espera.
+  document.querySelectorAll('form[data-enviando]').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      var boton = form.querySelector('button[type=submit]');
+      if (boton) {
+        boton.disabled = true;
+        boton.textContent = form.getAttribute('data-enviando');
+      }
+    });
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Pestañas simples (index.php): cada botón [data-panel] de un grupo
+  // [data-tabs] muestra su panel y oculta los de los demás botones.
+  document.querySelectorAll('[data-tabs]').forEach(function (grupo) {
+    var botones = grupo.querySelectorAll('[data-panel]');
+    botones.forEach(function (boton) {
+      boton.addEventListener('click', function () {
+        botones.forEach(function (b) {
+          var activo = b === boton;
+          b.setAttribute('aria-selected', activo ? 'true' : 'false');
+          document.getElementById(b.getAttribute('data-panel')).hidden = !activo;
+        });
+      });
+    });
+  });
+
+  // Campos que solo aparecen con cierta opción elegida, p. ej.
+  // data-muestra-si="tipo=Otro" (el "¿Cuál?" del tipo de asistente).
+  document.querySelectorAll('[data-muestra-si]').forEach(function (campo) {
+    var partes = campo.getAttribute('data-muestra-si').split('=');
+    var radios = document.querySelectorAll('input[name="' + partes[0] + '"]');
+    function actualizar() {
+      var elegido = document.querySelector('input[name="' + partes[0] + '"]:checked');
+      campo.hidden = !(elegido && elegido.value === partes[1]);
+    }
+    radios.forEach(function (r) { r.addEventListener('change', actualizar); });
+    actualizar();
+  });
+
+  // Control de acceso: vuelve a cargar la página (sin reenviar el
+  // formulario) justo cuando el horario abre o cierra el ingreso.
+  var barra = document.querySelector('[data-recargar-en]');
+  if (barra) {
+    var segundos = parseInt(barra.getAttribute('data-recargar-en'), 10);
+    if (segundos > 0 && segundos < 86400) {
+      setTimeout(function () { location.href = location.pathname; }, segundos * 1000);
+    }
+  }
 });
 
 // Copiar el enlace de autorregistro al portapapeles (usado en autorregistro.php).
