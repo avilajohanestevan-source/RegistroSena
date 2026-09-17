@@ -24,7 +24,7 @@ $idDescarga = 'descargaCrono' . (int) $eventoDescarga['id'];
       <label class="crono-modo elegido">
         <input type="radio" name="formato" value="pdf" checked>
         <strong>PDF</strong>
-        <span>Para imprimir: una hoja por día.</span>
+        <span><?= count($diasDescarga) > 1 ? 'Para imprimir: los días lado a lado en hoja horizontal.' : 'Para imprimir en hoja vertical.' ?></span>
       </label>
       <label class="crono-modo">
         <input type="radio" name="formato" value="png">
@@ -35,7 +35,7 @@ $idDescarga = 'descargaCrono' . (int) $eventoDescarga['id'];
     <?php if (count($diasDescarga) > 1): ?>
       <label for="<?= $idDescarga ?>Dia" style="margin-top:14px;">Día</label>
       <select id="<?= $idDescarga ?>Dia" name="dia">
-        <option value="0">Todos los días</option>
+        <option value="0">Todos los días (en columnas, lado a lado)</option>
         <?php foreach ($diasDescarga as $diaOpcion): ?>
           <option value="<?= $diaOpcion['dia'] ?>"><?= h($diaOpcion['etiqueta']) ?></option>
         <?php endforeach; ?>

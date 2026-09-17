@@ -71,6 +71,7 @@ if ($panel) {
         <div class="form-actions" style="justify-content:center;">
           <?php if ($cronograma): ?>
             <button type="button" class="btn btn-primary" data-abrir-dialogo="modalCronograma">Ver cronograma</button>
+            <?php if ($eventoTarjeta['estado'] === 'activo'): $eventoDescarga = $eventoTarjeta; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-outline'; require __DIR__ . '/includes/cronograma_descarga.php'; endif; ?>
           <?php endif; ?>
           <?php if ($mostrarQr): ?>
             <button class="btn btn-outline" onclick="window.print()">Imprimir / guardar tarjeta</button>

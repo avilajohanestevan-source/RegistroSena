@@ -277,7 +277,10 @@ evento **activo** a la vez, y todo el panel trabaja sobre ese evento.
 - **Descargar cronograma** (en *Eventos*, *Cronograma*, el resumen de un
   evento archivado y la página pública): PDF con una hoja por día o imagen
   PNG, con letra grande, logo y colores del SENA, para imprimir y pegar en
-  la sede. Se puede bajar un día o todos.
+  la sede. Un día sale en hoja vertical; todos los días salen lado a lado,
+  cada día en su columna (hoja horizontal; si un día no cabe, continúa en la
+  siguiente hoja). Los invitados también lo descargan desde la página de la
+  invitación, desde su tarjeta con el QR y desde el enlace del correo.
 
 ## 8. Administrador, estadísticas y exportes
 

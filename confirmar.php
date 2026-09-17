@@ -101,7 +101,10 @@ require __DIR__ . '/includes/head.php';
         <h2 class="section-title">Cronograma del evento</h2>
         <p class="section-sub">Estas son las actividades programadas<?= count($dias) > 1 ? '; elige el día para ver cada uno' : '' ?>.</p>
         <?php require __DIR__ . '/includes/cronograma_vista.php'; ?>
-        <div class="form-actions"><a class="table-link" href="cronograma_ver.php" target="_blank" rel="noopener">Ver el cronograma en página completa</a></div>
+        <div class="form-actions">
+          <?php $eventoDescarga = $eventoInvitado; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-primary'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
+          <a class="btn btn-outline" href="cronograma_ver.php" target="_blank" rel="noopener">Ver en página completa</a>
+        </div>
       </div>
     <?php endif; ?>
   </div></main>

@@ -139,6 +139,7 @@ function bloqueCronogramaCorreo($cronograma) {
         <tr>
           <td style="padding:6px 20px 20px;text-align:center;">
             <a href="' . h($cronograma['url']) . '" style="color:#007832;font-weight:bold;font-size:13.5px;">Ver el cronograma completo' . h($mas) . '</a>
+            ' . (!empty($cronograma['pdf']) ? '<br><a href="' . h($cronograma['pdf']) . '" style="display:inline-block;margin-top:10px;background:#39A900;color:#ffffff;text-decoration:none;font-weight:bold;font-size:13.5px;padding:9px 16px;border-radius:8px;">Descargar el cronograma (PDF)</a>' : '') . '
           </td>
         </tr>';
     return $html;
@@ -157,7 +158,7 @@ function textoCronogramaCorreo($cronograma) {
                 . ($item['ubicacion'] !== '' ? ' (' . $item['ubicacion'] . ')' : '') . "\n";
         }
     }
-    return $texto . "\nCronograma completo: " . $cronograma['url'];
+    return $texto . "\nCronograma completo: " . $cronograma['url'] . (!empty($cronograma['pdf']) ? "\nDescargar en PDF: " . $cronograma['pdf'] : '');
 }
 
 /**

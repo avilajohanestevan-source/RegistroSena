@@ -298,6 +298,7 @@ function cronogramaParaCorreo(mysqli $conn, $evento, $maxDias = 4) {
         'dias'   => $bloques,
         'faltan' => max(0, count($conActividades) - $maxDias),
         'url'    => urlCronograma($hoy),
+        'pdf'    => urlDelSistema('cronograma_descargar.php') . '?formato=pdf',
     ];
 }
 
