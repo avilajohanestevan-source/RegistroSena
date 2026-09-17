@@ -54,29 +54,28 @@ function plantillaCertificado(mysqli $conn) {
     return $fila ?: [
         'titulo' => 'Certificado de asistencia', 'texto_completa' => '', 'texto_parcial' => '', 'texto_charla' => '',
         'pie' => '', 'firmante_nombre' => '', 'firmante_cargo' => 'Director Académico', 'firma_archivo' => '',
-        'logo_archivo' => '', 'mostrar_sello' => 1, 'color' => '#39A900',
+        'logo_archivo' => '', 'mostrar_sello' => 1, 'color' => '#39A900', 'diseno' => 'oficial',
+        'entidad' => 'El Servicio Nacional de Aprendizaje SENA', 'mencion_legal' => 'En cumplimiento de la Ley 119 de 1994',
+        'texto_escudo' => 'REPÚBLICA DE COLOMBIA', 'ciudad' => 'Bogotá', 'firmante_dependencia' => '', 'firmante_regional' => '',
     ];
 }
 
 function guardarPlantillaCertificado(mysqli $conn, array $datos, $usuarioId) {
-    $color = array_key_exists($datos['color'], COLORES_CERTIFICADO) ? $datos['color'] : '#39A900';
-    $sello = !empty($datos['mostrar_sello']) ? 1 : 0;
-    $usuarioId = (int) $usuarioId;
+    $datos['color'] = array_key_exists($datos['color'], COLORES_CERTIFICADO) ? $datos['color'] : '#39A900';
+    $datos['diseno'] = array_key_exists($datos['diseno'] ?? '', DISENOS_CERTIFICADO) ? $datos['diseno'] : 'oficial';
+    $datos['mostrar_sello'] = !empty($datos['mostrar_sello']) ? 1 : 0;
+    $columnas = ['titulo', 'texto_completa', 'texto_parcial', 'texto_charla', 'pie', 'firmante_nombre', 'firmante_cargo',
+        'firma_archivo', 'logo_archivo', 'mostrar_sello', 'color', 'diseno', 'entidad', 'mencion_legal', 'texto_escudo',
+        'ciudad', 'firmante_dependencia', 'firmante_regional'];
+    $valores = array_map(function ($c) use ($datos) { return (string) ($datos[$c] ?? ''); }, $columnas);
+    $valores[] = (int) $usuarioId;
     $stmt = $conn->prepare(
-        "INSERT INTO certificado_plantilla (id, titulo, texto_completa, texto_parcial, texto_charla, pie, firmante_nombre, firmante_cargo,
-                                            firma_archivo, logo_archivo, mostrar_sello, color, actualizado_en, actualizado_por)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
-         ON DUPLICATE KEY UPDATE titulo = VALUES(titulo), texto_completa = VALUES(texto_completa), texto_parcial = VALUES(texto_parcial),
-           texto_charla = VALUES(texto_charla), pie = VALUES(pie), firmante_nombre = VALUES(firmante_nombre),
-           firmante_cargo = VALUES(firmante_cargo), firma_archivo = VALUES(firma_archivo), logo_archivo = VALUES(logo_archivo),
-           mostrar_sello = VALUES(mostrar_sello), color = VALUES(color), actualizado_en = NOW(), actualizado_por = VALUES(actualizado_por)"
+        "INSERT INTO certificado_plantilla (id, " . implode(', ', $columnas) . ", actualizado_en, actualizado_por)
+         VALUES (1, " . implode(', ', array_fill(0, count($columnas), '?')) . ", NOW(), ?)
+         ON DUPLICATE KEY UPDATE " . implode(', ', array_map(function ($c) { return "$c = VALUES($c)"; }, $columnas))
+         . ", actualizado_en = NOW(), actualizado_por = VALUES(actualizado_por)"
     );
-    $stmt->bind_param(
-        'sssssssssisi',
-        $datos['titulo'], $datos['texto_completa'], $datos['texto_parcial'], $datos['texto_charla'], $datos['pie'],
-        $datos['firmante_nombre'], $datos['firmante_cargo'], $datos['firma_archivo'], $datos['logo_archivo'],
-        $sello, $color, $usuarioId
-    );
+    $stmt->bind_param(str_repeat('s', count($columnas)) . 'i', ...$valores);
     $stmt->execute();
     $stmt->close();
 }
@@ -480,10 +479,19 @@ function marcarCertificadoEnviado(mysqli $conn, $id) {
 
 /* ------------------------------------------------------------------ PDF */
 
+/** "1077968933" → "1.077.968.933" (conserva los ceros a la izquierda). */
+function formatoCedula($cedula) {
+    return strrev(implode('.', str_split(strrev((string) $cedula), 3)));
+}
+
 /** El texto del certificado con los datos de la persona. */
 function textoCertificado(array $plantilla, array $certificado, array $evento) {
     $base = $plantilla['texto_' . $certificado['criterio']] ?? $plantilla['texto_completa'];
-    return strtr($base, [
+    return reemplazarMarcadores($base, $certificado, $evento);
+}
+
+function reemplazarMarcadores($texto, array $certificado, array $evento) {
+    return strtr($texto, [
         '{nombre}'         => $certificado['nombre'],
         '[Nombre completo]' => $certificado['nombre'],
         '{cedula}'         => $certificado['cedula'],
@@ -502,8 +510,130 @@ function urlVerificacionCertificado($codigo) {
     return urlDelSistema('certificado_verificar.php') . '?c=' . $codigo;
 }
 
+/** Diseños del certificado. */
+const DISENOS_CERTIFICADO = [
+    'oficial' => 'Oficial (sobrio, como los certificados del SENA)',
+    'moderno' => 'Moderno (marco de color y sello)',
+];
+
+/** 1..99 en letras. $apocope: "veintiún", "treinta y un" (antes de un sustantivo). */
+function numeroEnLetras($n, $apocope = false) {
+    $unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez',
+        'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte',
+        'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+    $decenas = [3 => 'treinta', 4 => 'cuarenta', 5 => 'cincuenta', 6 => 'sesenta', 7 => 'setenta', 8 => 'ochenta', 9 => 'noventa'];
+    $n = (int) $n;
+    if ($n < 30) {
+        $texto = $unidades[$n];
+    } else {
+        $texto = $decenas[intdiv($n, 10)] . ($n % 10 ? ' y ' . $unidades[$n % 10] : '');
+    }
+    return $apocope ? preg_replace('/uno$/u', 'ún', preg_replace('/ y uno$/u', ' y un', $texto)) : $texto;
+}
+
+/** "a los dieciséis (16) días del mes de septiembre de dos mil veintiséis (2026)" */
+function fechaEnLetras($fecha) {
+    $ts = strtotime($fecha);
+    $meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    $dia = (int) date('j', $ts);
+    $anio = (int) date('Y', $ts);
+    $diaTexto = $dia === 1 ? 'al primer (1) día' : 'a los ' . numeroEnLetras($dia, true) . ' (' . $dia . ') días';
+    $resto = $anio % 1000;
+    $anioTexto = ($anio >= 2000 && $anio < 3000 ? 'dos mil' : (string) $anio) . ($resto > 0 && $resto < 100 ? ' ' . numeroEnLetras($resto) : '');
+    return $diaTexto . ' del mes de ' . $meses[(int) date('n', $ts) - 1] . ' de ' . $anioTexto . ' (' . $anio . ')';
+}
+
+function imagenBase64($ruta) {
+    return 'data:image/png;base64,' . base64_encode(file_get_contents($ruta));
+}
+
 /** HTML de una página de certificado (carta horizontal) para Dompdf. */
 function htmlCertificado(array $plantilla, array $certificado, array $evento) {
+    return ($plantilla['diseno'] ?? 'oficial') === 'moderno'
+        ? htmlCertificadoModerno($plantilla, $certificado, $evento)
+        : htmlCertificadoOficial($plantilla, $certificado, $evento);
+}
+
+/**
+ * Diseño oficial: fondo blanco, emblema arriba, "El Servicio Nacional de
+ * Aprendizaje SENA", "Hace constar que", nombre, cédula, el texto del
+ * criterio (por líneas; la línea {evento} va en grande), el testimonio con
+ * la fecha en letras, el bloque de firma digital y la verificación.
+ */
+function htmlCertificadoOficial(array $plantilla, array $certificado, array $evento) {
+    $emblema = imagenCertificadoDataUri($plantilla['logo_archivo']) ?? imagenBase64(__DIR__ . '/../img/sena-logo-verde.png');
+    $marca = imagenBase64(__DIR__ . '/../img/sena-logo-gris.png');
+    $firma = imagenCertificadoDataUri($plantilla['firma_archivo']);
+    $firmante = trim($plantilla['firmante_nombre']) !== '' ? $plantilla['firmante_nombre'] : 'Director Académico';
+    $ciudad = trim($plantilla['ciudad'] ?? '') !== '' ? $plantilla['ciudad'] : 'Bogotá';
+    $emitido = substr(!empty($certificado['emitido_en']) ? $certificado['emitido_en'] : date('Y-m-d'), 0, 10);
+    $esMuestra = $certificado['codigo'] === 'MUESTRA000';
+
+    // El texto del criterio, línea por línea. La línea que es solo {evento} va en grande.
+    $base = $plantilla['texto_' . $certificado['criterio']] ?? $plantilla['texto_completa'];
+    $lineas = '';
+    foreach (preg_split('/\R/u', trim($base)) as $linea) {
+        if (trim($linea) === '') {
+            continue;
+        }
+        if (trim($linea) === '{evento}') {
+            $lineas .= '<div class="of-evento">' . h(mb_strtoupper($evento['nombre'])) . '</div>';
+        } else {
+            $lineas .= '<div class="of-linea">' . h(reemplazarMarcadores($linea, $certificado, $evento)) . '</div>';
+        }
+    }
+
+    $dependencia = '';
+    foreach ([$plantilla['firmante_cargo'], $plantilla['firmante_dependencia'] ?? '', $plantilla['firmante_regional'] ?? ''] as $texto) {
+        if (trim($texto) !== '') {
+            $dependencia .= '<div>' . h(mb_strtoupper($texto)) . '</div>';
+        }
+    }
+    $verificacion = $esMuestra
+        ? 'VISTA PREVIA: el número de verificación se asigna al emitir el certificado.'
+        : 'La autenticidad de este documento puede ser verificada en el registro electrónico que se encuentra en la página web '
+            . urlVerificacionCertificado($certificado['codigo']) . ', bajo el número ' . formatoCodigoCertificado($certificado['codigo']) . '.';
+
+    return '
+    <div class="cert of">
+      <img class="of-marca" src="' . $marca . '" alt="">
+      <div class="of-cabeza">
+        <img class="of-emblema" src="' . $emblema . '" alt="">
+        ' . (trim($plantilla['texto_escudo'] ?? '') !== '' ? '<div class="of-escudo-txt">' . h($plantilla['texto_escudo']) . '</div>' : '') . '
+      </div>
+      <div class="of-entidad">' . h($plantilla['entidad'] ?? 'El Servicio Nacional de Aprendizaje SENA') . '</div>
+      ' . (trim($plantilla['mencion_legal'] ?? '') !== '' ? '<div class="of-ley">' . h($plantilla['mencion_legal']) . '</div>' : '') . '
+
+      <div class="of-constar">Hace constar que</div>
+      <div class="of-nombre">' . h(mb_strtoupper($certificado['nombre'])) . '</div>
+      <div class="of-cedula">Con Cédula de Ciudadanía No. ' . h(formatoCedula($certificado['cedula'])) . '</div>
+      <div class="of-cuerpo">' . $lineas . '</div>
+      <div class="of-testimonio">En testimonio de lo anterior, se firma el presente en ' . h($ciudad) . ', ' . h(fechaEnLetras($emitido)) . '</div>
+
+      <table class="of-pie"><tr>
+        <td class="of-firma">
+          ' . ($firma ? '<img class="of-firma-img" src="' . $firma . '" alt="Firma">' : '') . '
+          <div class="of-digital">
+            <div class="of-digital-t">Firmado Digitalmente por</div>
+            <div>' . h(mb_strtoupper($firmante)) . '</div>
+            <div>SERVICIO NACIONAL DE APRENDIZAJE - SENA</div>
+            <div>Autenticidad del Documento</div>
+            <div>' . h($ciudad) . ' - Colombia</div>
+          </div>
+          <div class="of-firmante">' . h(mb_strtoupper($firmante)) . '</div>
+          <div class="of-cargo">' . $dependencia . '</div>
+        </td>
+        <td class="of-registro">
+          <div class="of-registro-n">' . h($esMuestra ? 'VISTA PREVIA' : formatoCodigoCertificado($certificado['codigo'])) . ' - ' . h(date('d/m/Y', strtotime($emitido))) . '</div>
+          <div>FECHA REGISTRO</div>
+        </td>
+      </tr></table>
+      <div class="of-verificacion">' . h($verificacion) . ($plantilla['pie'] !== '' ? ' ' . h($plantilla['pie']) : '') . '</div>
+    </div>';
+}
+
+/** Diseño moderno: marco de color, sello y el texto en párrafos. */
+function htmlCertificadoModerno(array $plantilla, array $certificado, array $evento) {
     $color = array_key_exists($plantilla['color'], COLORES_CERTIFICADO) ? $plantilla['color'] : '#39A900';
     $logo = imagenCertificadoDataUri($plantilla['logo_archivo'])
         ?? 'data:image/png;base64,' . base64_encode(file_get_contents(__DIR__ . '/../img/sena-logo-verde.png'));
@@ -512,7 +642,9 @@ function htmlCertificado(array $plantilla, array $certificado, array $evento) {
     $firmante = trim($plantilla['firmante_nombre']) !== '' ? $plantilla['firmante_nombre'] : 'Director Académico';
 
     $parrafos = '';
-    foreach (preg_split('/\R{2,}/u', trim(textoCertificado($plantilla, $certificado, $evento))) as $parrafo) {
+    // El nombre del evento ya va como encabezado: se omite la línea que es solo {evento}.
+    $base = preg_replace('/^\h*\{evento\}\h*(?:\R|\z)/mu', '', $plantilla['texto_' . $certificado['criterio']] ?? $plantilla['texto_completa']);
+    foreach (preg_split('/\R{2,}/u', trim(reemplazarMarcadores($base, $certificado, $evento))) as $parrafo) {
         $parrafos .= '<p>' . nl2br(h($parrafo)) . '</p>';
     }
     // Resalta el nombre y la cédula dentro del texto.
@@ -604,6 +736,33 @@ function documentoCertificados(array $paginas) {
         .sello-txt { font-size: 14px; font-weight: bold; color: #007832; letter-spacing: 2px; }
         .sello-sub { font-size: 6px; color: #007832; text-transform: uppercase; }
         .pie { position: absolute; left: 70px; right: 70px; bottom: 52px; text-align: center; font-size: 9px; color: #5B6660; }
+        /* Diseño oficial */
+        .of { font-family: "DejaVu Serif", serif; color: #111111; text-align: center; }
+        .of-marca { position: absolute; left: 368px; top: 300px; width: 320px; }
+        .of-cabeza { position: absolute; top: 46px; left: 0; right: 0; }
+        .of-emblema { width: 86px; height: 86px; }
+        .of-escudo-txt { font-family: "DejaVu Sans", sans-serif; font-size: 9.5px; margin-top: 2px; letter-spacing: 0.3px; }
+        .of-entidad { position: absolute; top: 172px; left: 60px; right: 60px; font-size: 27px; font-weight: bold; }
+        .of-ley { position: absolute; top: 222px; left: 60px; right: 60px; font-size: 12px; font-style: italic; }
+        .of-constar { position: absolute; top: 262px; left: 60px; right: 60px; font-size: 15px; font-weight: bold; font-style: italic; }
+        .of-nombre { position: absolute; top: 284px; left: 60px; right: 60px; font-size: 19px; font-weight: bold; font-family: "DejaVu Sans", sans-serif; }
+        .of-cedula { position: absolute; top: 312px; left: 60px; right: 60px; font-size: 12.5px; font-style: italic; }
+        .of-cuerpo { position: absolute; top: 346px; left: 90px; right: 90px; }
+        .of-linea { font-size: 14px; font-style: italic; line-height: 1.45; }
+        .of-evento { font-size: 26px; font-weight: bold; line-height: 1.2; margin: 2px 0; }
+        .of-testimonio { position: absolute; top: 500px; left: 70px; right: 70px; font-size: 11.5px; font-style: italic; }
+        .of-pie { position: absolute; top: 540px; left: 150px; width: 790px; border-collapse: collapse; font-family: "DejaVu Sans", sans-serif; }
+        .of-pie td { vertical-align: bottom; padding: 0; }
+        .of-firma { text-align: left; width: 58%; }
+        .of-firma-img { max-width: 190px; max-height: 58px; margin-left: 10px; }
+        .of-digital { font-size: 12px; line-height: 1.25; }
+        .of-digital div { padding-left: 8px; }
+        .of-digital .of-digital-t { font-size: 13.5px; padding-left: 0; }
+        .of-firmante { font-size: 10.5px; margin-top: 4px; text-align: center; width: 300px; }
+        .of-cargo { font-size: 7.5px; font-weight: bold; text-align: center; width: 300px; line-height: 1.3; }
+        .of-registro { text-align: center; font-size: 10.5px; padding-bottom: 26px !important; }
+        .of-registro-n { font-weight: bold; }
+        .of-verificacion { position: absolute; left: 70px; right: 70px; bottom: 44px; font-size: 9.5px; text-align: justify; line-height: 1.35; }
     </style></head><body>' . implode('', $paginas) . '</body></html>';
 }
 

@@ -24,11 +24,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'firmante_cargo'  => mb_substr(trim($_POST['firmante_cargo'] ?? ''), 0, 150),
         'mostrar_sello'   => !empty($_POST['mostrar_sello']),
         'color'           => $_POST['color'] ?? '#39A900',
+        'diseno'          => $_POST['diseno'] ?? 'oficial',
+        'entidad'         => mb_substr(trim($_POST['entidad'] ?? ''), 0, 150),
+        'mencion_legal'   => mb_substr(trim($_POST['mencion_legal'] ?? ''), 0, 200),
+        'texto_escudo'    => mb_substr(trim($_POST['texto_escudo'] ?? ''), 0, 150),
+        'ciudad'          => mb_substr(trim($_POST['ciudad'] ?? ''), 0, 80),
+        'firmante_dependencia' => mb_substr(trim($_POST['firmante_dependencia'] ?? ''), 0, 150),
+        'firmante_regional'    => mb_substr(trim($_POST['firmante_regional'] ?? ''), 0, 150),
         'firma_archivo'   => $plantilla['firma_archivo'],
         'logo_archivo'    => $plantilla['logo_archivo'],
     ];
     if ($datos['titulo'] === '') {
         $errores['titulo'] = 'Escribe el título del certificado.';
+    }
+    if ($datos['entidad'] === '') {
+        $errores['entidad'] = 'Escribe el nombre de la entidad.';
+    }
+    if ($datos['ciudad'] === '') {
+        $errores['ciudad'] = 'Escribe la ciudad donde se firma.';
     }
     foreach (['texto_completa', 'texto_parcial', 'texto_charla'] as $campo) {
         if (mb_strlen($datos[$campo]) < 20) {
@@ -117,9 +130,38 @@ require __DIR__ . '/includes/layout_top.php';
       </div>
     </div>
 
-    <div class="form-grid">
+    <fieldset class="crono-modos" style="margin-top:0;">
+      <legend>Diseño</legend>
+      <?php foreach (DISENOS_CERTIFICADO as $clave => $etiqueta): ?>
+        <label class="crono-modo<?= ($plantilla['diseno'] ?? 'oficial') === $clave ? ' elegido' : '' ?>">
+          <input type="radio" name="diseno" value="<?= $clave ?>"<?= ($plantilla['diseno'] ?? 'oficial') === $clave ? ' checked' : '' ?>>
+          <strong><?= $clave === 'oficial' ? 'Oficial' : 'Moderno' ?></strong>
+          <span><?= $clave === 'oficial'
+              ? 'Fondo blanco, escudo arriba, "Hace constar que", firma digital y número de registro, como los certificados del SENA.'
+              : 'Marco de color, sello institucional y el texto en párrafos.' ?></span>
+        </label>
+      <?php endforeach; ?>
+    </fieldset>
+
+    <div class="form-grid" style="margin-top:18px;">
       <div class="full">
-        <label for="titulo">Título</label>
+        <label for="entidad">Entidad que certifica</label>
+        <input type="text" id="entidad" name="entidad" maxlength="150" value="<?= h($plantilla['entidad'] ?? '') ?>">
+        <?php if (!empty($errores['entidad'])): ?><div class="field-error"><?= h($errores['entidad']) ?></div><?php endif; ?>
+      </div>
+      <div>
+        <label for="mencion_legal">Mención legal <span class="opt">(diseño oficial)</span></label>
+        <input type="text" id="mencion_legal" name="mencion_legal" maxlength="200" value="<?= h($plantilla['mencion_legal'] ?? '') ?>">
+      </div>
+      <div>
+        <label for="texto_escudo">Texto bajo el escudo <span class="opt">(diseño oficial)</span></label>
+        <input type="text" id="texto_escudo" name="texto_escudo" maxlength="150" value="<?= h($plantilla['texto_escudo'] ?? '') ?>">
+      </div>
+    </div>
+
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="full">
+        <label for="titulo">Título <span class="opt">(diseño moderno)</span></label>
         <input type="text" id="titulo" name="titulo" maxlength="120" value="<?= h($plantilla['titulo']) ?>">
         <?php if (!empty($errores['titulo'])): ?><div class="field-error"><?= h($errores['titulo']) ?></div><?php endif; ?>
       </div>
@@ -139,14 +181,14 @@ require __DIR__ . '/includes/layout_top.php';
       <div class="cert-texto">
         <label for="<?= $campo ?>">Texto · <?= h($etiqueta) ?></label>
         <textarea id="<?= $campo ?>" name="<?= $campo ?>" rows="5" data-marcadores><?= h($plantilla[$campo]) ?></textarea>
-        <div class="field-hint"><?= h($ayuda) ?> Deja una línea en blanco para separar párrafos.</div>
+        <div class="field-hint"><?= h($ayuda) ?> Cada línea va centrada; una línea que diga solo <code>{evento}</code> muestra el nombre del evento en grande.</div>
         <?php if (!empty($errores[$campo])): ?><div class="field-error"><?= h($errores[$campo]) ?></div><?php endif; ?>
       </div>
     <?php endforeach; ?>
 
     <div class="form-grid">
       <div class="full">
-        <label for="pie">Texto del pie <span class="opt">(opcional)</span></label>
+        <label for="pie">Texto adicional del pie <span class="opt">(opcional)</span></label>
         <input type="text" id="pie" name="pie" maxlength="255" value="<?= h($plantilla['pie']) ?>" placeholder="Ej. Centro de Gestión Industrial · Regional Cundinamarca">
       </div>
     </div>
@@ -167,6 +209,19 @@ require __DIR__ . '/includes/layout_top.php';
           <div class="full">
             <label for="firmante_cargo">Cargo</label>
             <input type="text" id="firmante_cargo" name="firmante_cargo" maxlength="150" value="<?= h($plantilla['firmante_cargo']) ?>">
+          </div>
+          <div class="full">
+            <label for="firmante_dependencia">Centro o dependencia <span class="opt">(opcional)</span></label>
+            <input type="text" id="firmante_dependencia" name="firmante_dependencia" maxlength="150" value="<?= h($plantilla['firmante_dependencia'] ?? '') ?>" placeholder="Ej. Centro de Diseño y Metrología">
+          </div>
+          <div>
+            <label for="firmante_regional">Regional <span class="opt">(opcional)</span></label>
+            <input type="text" id="firmante_regional" name="firmante_regional" maxlength="150" value="<?= h($plantilla['firmante_regional'] ?? '') ?>" placeholder="Ej. Regional Distrito Capital">
+          </div>
+          <div>
+            <label for="ciudad">Ciudad donde se firma</label>
+            <input type="text" id="ciudad" name="ciudad" maxlength="80" value="<?= h($plantilla['ciudad'] ?? '') ?>">
+            <?php if (!empty($errores['ciudad'])): ?><div class="field-error"><?= h($errores['ciudad']) ?></div><?php endif; ?>
           </div>
           <div class="full">
             <label for="firma">Archivo de la firma</label>
@@ -193,15 +248,16 @@ require __DIR__ . '/includes/layout_top.php';
     </div>
 
     <label class="check-linea" style="margin-top:16px;">
-      <input type="checkbox" name="mostrar_sello" value="1"<?= !empty($plantilla['mostrar_sello']) ? ' checked' : '' ?>> Mostrar el sello institucional del SENA junto a la firma
+      <input type="checkbox" name="mostrar_sello" value="1"<?= !empty($plantilla['mostrar_sello']) ? ' checked' : '' ?>> Mostrar el sello institucional del SENA junto a la firma <span class="text-muted">(diseño moderno)</span>
     </label>
   </div>
 
   <div class="card">
-    <h2 class="section-title">Logo y estilo</h2>
+    <h2 class="section-title">Escudo o logo y color</h2>
     <div class="form-grid">
       <div>
-        <label for="logo">Logo <span class="opt">(opcional, por defecto el del SENA)</span></label>
+        <label for="logo">Escudo o logo superior <span class="opt">(por defecto el logo del SENA)</span></label>
+        <div class="field-hint" style="margin-bottom:6px;">En el diseño oficial va centrado arriba, como el escudo de la República. PNG o JPG hasta 2 MB.</div>
         <input type="file" id="logo" name="logo" accept="image/png,image/jpeg">
         <?php if (!empty($errores['logo'])): ?><div class="field-error"><?= h($errores['logo']) ?></div><?php endif; ?>
         <div class="cert-logo-muestra">
@@ -212,7 +268,7 @@ require __DIR__ . '/includes/layout_top.php';
         </div>
       </div>
       <div>
-        <label>Color del marco</label>
+        <label>Color del marco <span class="opt">(diseño moderno)</span></label>
         <div class="cert-colores">
           <?php foreach (COLORES_CERTIFICADO as $hex => $nombre): ?>
             <label class="cert-color" title="<?= h($nombre) ?>">

@@ -74,3 +74,22 @@ CREATE TABLE IF NOT EXISTS certificados (
   CONSTRAINT certificados_lote FOREIGN KEY (lote_id) REFERENCES certificado_lotes (id) ON DELETE CASCADE,
   CONSTRAINT certificados_evento FOREIGN KEY (evento_id) REFERENCES eventos (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Diseño "oficial" (sobrio, como los certificados del SENA) y sus textos.
+ALTER TABLE certificado_plantilla
+  ADD COLUMN IF NOT EXISTS diseno VARCHAR(10) NOT NULL DEFAULT 'oficial',              -- oficial | moderno
+  ADD COLUMN IF NOT EXISTS entidad VARCHAR(150) NOT NULL DEFAULT 'El Servicio Nacional de Aprendizaje SENA',
+  ADD COLUMN IF NOT EXISTS mencion_legal VARCHAR(200) NOT NULL DEFAULT 'En cumplimiento de la Ley 119 de 1994',
+  ADD COLUMN IF NOT EXISTS texto_escudo VARCHAR(150) NOT NULL DEFAULT 'REPÚBLICA DE COLOMBIA',
+  ADD COLUMN IF NOT EXISTS ciudad VARCHAR(80) NOT NULL DEFAULT 'Bogotá',
+  ADD COLUMN IF NOT EXISTS firmante_dependencia VARCHAR(150) NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS firmante_regional VARCHAR(150) NOT NULL DEFAULT '';
+
+-- Si la plantilla nunca se ha editado, se pasan los textos al formato por
+-- líneas del diseño oficial (una línea que diga solo {evento} muestra el
+-- nombre del evento en grande).
+UPDATE certificado_plantilla SET
+  texto_completa = 'Asistió y participó en las actividades programadas del evento\n{evento}\n{fechas}',
+  texto_parcial  = 'Asistió a {dias_asistidos} de los {total_dias} días del evento\n{evento}\n{fechas}',
+  texto_charla   = 'Asistió a la charla «{charla}» ({charla_horario}), realizada en el marco del evento\n{evento}'
+WHERE id = 1 AND actualizado_en IS NULL AND texto_completa LIKE 'Se certifica que {nombre}%';

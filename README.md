@@ -354,8 +354,17 @@ en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
 
 Pestaña **Certificados** (solo administrador).
 
+- **Diseño**: *Oficial* (por defecto, como los certificados del SENA: fondo
+  blanco, escudo o logo arriba, "Hace constar que", nombre y cédula, el
+  evento en grande, "En testimonio de lo anterior…" con la fecha en letras,
+  bloque "Firmado Digitalmente por", número y fecha de registro, texto de
+  verificación y marca de agua del SENA) o *Moderno* (marco de color y sello).
+  En el oficial se editan la entidad, la mención legal, el texto bajo el
+  escudo, la ciudad y el centro y la regional del firmante. Para usar el
+  escudo de la República, súbelo como imagen superior.
 - **Plantilla única** (*Editar plantilla y firma*): título, texto de la
-  certificación para cada criterio con marcadores (`{nombre}`, `{cedula}`,
+  certificación para cada criterio (una línea por renglón; la línea
+  `{evento}` sola pone el nombre del evento en grande) con marcadores (`{nombre}`, `{cedula}`,
   `{evento}`, `{fechas}`, `{dias_asistidos}`, `{total_dias}`, `{tipo}`,
   `{charla}`, `{charla_horario}`), pie, logo (por defecto el del SENA),
   color del marco y sello institucional.
