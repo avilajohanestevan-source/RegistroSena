@@ -750,8 +750,8 @@ function documentoCertificados(array $paginas) {
         /* Diseño oficial */
         .of { font-family: "DejaVu Serif", serif; color: #111111; text-align: center; }
         .of-marca { position: absolute; left: 368px; top: 300px; width: 320px; }
-        .of-cabeza { position: absolute; top: 46px; left: 0; right: 0; }
-        .of-emblema { width: 86px; height: 86px; }
+        .of-cabeza { position: absolute; top: 40px; left: 0; right: 0; }
+        .of-emblema { height: 100px; }
         .of-escudo-txt { font-family: "DejaVu Sans", sans-serif; font-size: 9.5px; margin-top: 2px; letter-spacing: 0.3px; }
         .of-entidad { position: absolute; top: 172px; left: 60px; right: 60px; font-size: 27px; font-weight: bold; }
         .of-ley { position: absolute; top: 222px; left: 60px; right: 60px; font-size: 12px; font-style: italic; }

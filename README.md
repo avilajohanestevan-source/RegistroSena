@@ -89,6 +89,8 @@ img/
   Sena-Logo.png            Logo original (se conserva como referencia)
   sena-logo-verde.png      Logo en verde institucional #39A900 (favicon y marcas de agua)
   sena-logo-blanco.png     Logo en blanco / negativo (cabeceras, pie y tarjeta)
+  sena-logo-gris.png       Marca de agua gris del certificado oficial
+  escudo-colombia.jpg      Escudo de Colombia: emblema por defecto del certificado oficial
 
 index.php              Inicio: qué es el sistema + inicio de sesión / registro de portería
 salir.php              Cierra la sesión (y el turno) del portero
