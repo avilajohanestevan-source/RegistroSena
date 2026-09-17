@@ -67,6 +67,7 @@ require __DIR__ . '/includes/layout_top.php';
     <a class="btn btn-outline btn-sm" href="asistentes.php?<?= h($consulta) ?>">Asistentes</a>
     <a class="btn btn-outline btn-sm" href="cronograma.php?<?= h($consulta) ?>">Cronograma</a>
     <a class="btn btn-primary btn-sm" href="exportar.php?formato=xlsx&amp;modo=descarga&amp;<?= h($consulta) ?>">Descargar Excel</a>
+    <?php $eventoDescarga = $eventoFila; $consultaEventoDescarga = 'evento=' . (int) $eventoFila['id'] . '&'; $claseBotonDescarga = 'btn btn-outline btn-sm'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
   </div>
 </div>
 

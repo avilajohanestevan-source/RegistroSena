@@ -34,6 +34,7 @@ require __DIR__ . '/includes/head.php';
         <?php require __DIR__ . '/includes/cronograma_vista.php'; ?>
       <?php endif; ?>
       <div class="form-actions">
+        <?php if ($cronograma): ?><?php $eventoDescarga = $eventoActual; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-primary'; require __DIR__ . '/includes/cronograma_descarga.php'; ?><?php endif; ?>
         <a class="btn btn-outline" href="consultar.php">Ver mi tarjeta con el QR</a>
       </div>
     </div>

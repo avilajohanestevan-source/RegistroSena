@@ -431,3 +431,73 @@ function enviarInvitaciones(array $invitaciones, $evento, $horario, $cronograma 
     $mail->smtpClose();
     return $resultados;
 }
+
+/**
+ * Correo con el certificado de asistencia adjunto en PDF.
+ */
+function plantillaCorreoCertificado(array $certificado, $evento, $url, $cidLogo = null) {
+    $contenido = '
+        <tr>
+          <td style="padding:26px 24px 8px;font-size:15px;line-height:1.6;color:#1B1B1B;">
+            Hola ' . h($certificado['nombre']) . ':<br><br>
+            Gracias por participar en <strong>' . h($evento) . '</strong>. Adjunto a este correo encuentras tu
+            <strong>certificado de asistencia</strong> en PDF.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:10px 24px 26px;text-align:center;">
+            <div style="display:inline-block;padding:10px 18px;border:2px dashed #39A900;border-radius:10px;font-family:monospace;font-size:18px;font-weight:bold;letter-spacing:2px;color:#00304D;">' . h(formatoCodigoCertificado($certificado['codigo'])) . '</div>
+            <p style="font-size:12.5px;color:#5B6660;margin:14px 0 0;">Con este código cualquier persona puede comprobar que el certificado es auténtico:<br>
+            <a href="' . h($url) . '" style="color:#007832;font-weight:bold;">Verificar certificado</a></p>
+          </td>
+        </tr>';
+    return plantillaCorreo('Certificado de asistencia', $evento, $contenido, $cidLogo);
+}
+
+/**
+ * Envía los certificados por correo, cada uno con su PDF, usando una sola
+ * conexión SMTP. $items: [[certificado, evento], ...].
+ * Devuelve [id del certificado => [ok(bool), detalle(string)]].
+ */
+function enviarCertificados(array $plantilla, array $items) {
+    $resultados = [];
+    if (!EMAIL_HABILITADO) {
+        foreach ($items as [$c]) {
+            $resultados[$c['id']] = [false, 'El envío de correo no está configurado.'];
+        }
+        return $resultados;
+    }
+
+    @set_time_limit(600);
+    $mail = crearMailer();
+    $mail->SMTPKeepAlive = true;
+    $cidLogo = incrustarLogo($mail);
+
+    foreach ($items as [$c, $evento]) {
+        if (empty($c['correo'])) {
+            $resultados[$c['id']] = [false, 'No tiene correo registrado.'];
+            continue;
+        }
+        $mail->clearAddresses();
+        $mail->clearAttachments();
+        try {
+            $url = urlVerificacionCertificado($c['codigo']);
+            $mail->addAddress($c['correo'], $c['nombre']);
+            $mail->Subject = 'Tu certificado de asistencia · ' . $evento['nombre'];
+            // clearAttachments() también quita el logo incrustado: se vuelve a poner.
+            $cidLogo = incrustarLogo($mail);
+            $mail->addStringAttachment(pdfCertificados($plantilla, [[$c, $evento]]), nombreArchivoCertificado($c), 'base64', 'application/pdf');
+            $mail->Body = plantillaCorreoCertificado($c, $evento['nombre'], $url, $cidLogo);
+            $mail->AltBody = 'Hola ' . $c['nombre'] . ":\n\n"
+                . 'Adjunto encuentras tu certificado de asistencia a ' . $evento['nombre'] . ".\n"
+                . 'Código de verificación: ' . formatoCodigoCertificado($c['codigo']) . "\n"
+                . 'Verificar: ' . $url;
+            $mail->send();
+            $resultados[$c['id']] = [true, ''];
+        } catch (Exception $e) {
+            $resultados[$c['id']] = [false, 'No se pudo enviar: ' . $mail->ErrorInfo];
+        }
+    }
+    $mail->smtpClose();
+    return $resultados;
+}

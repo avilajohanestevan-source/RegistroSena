@@ -60,6 +60,10 @@ includes/
   invitaciones.php      Invitaciones: crear, enviar, confirmar e inscribir
   cronograma.php        Cronograma: días del evento, validación, cruces y copia entre días
   cronograma_vista.php  Cronograma de solo lectura (tarjeta, confirmación, página pública)
+  cronograma_export.php Diseño del cronograma para descargar (PDF y PNG)
+  cronograma_descarga.php Botón y ventana "Descargar cronograma"
+  certificados.php      Certificados: plantilla, criterios de asistencia, lotes y PDF
+  vista_previa.php      Ventana de vista previa de archivos (PDF / Excel)
   alerta.php            Alerta modal (avisos de sesión)
   no_autorizado.php     Respuesta 401 cuando se entra por URL sin sesión
   estadisticas.php      Cálculos de asistencia para estadísticas y exportes
@@ -100,6 +104,13 @@ migracion_personas.sql Directorio de personas, QR permanente y personas borradas
 cronograma.php         Panel (admin): cronograma por día (tabla y calendario)
 cronograma_ver.php     PÚBLICO: cronograma del evento activo, con selector de día
 migracion_cronograma.sql Tabla `cronograma` y modo del cronograma en `eventos`
+cronograma_descargar.php Cronograma en PDF (Dompdf) o PNG (GD) para imprimir
+certificados.php       Panel (admin): quién cumple, generar lotes, ZIP y envío por correo
+certificado_plantilla.php Panel (admin): texto, logo, firma electrónica, sello y color
+certificado_pdf.php    Panel (admin): PDF de un certificado, de un lote o vista previa; ZIP
+certificado_verificar.php PÚBLICO: verificar un certificado con su código
+migracion_certificados.sql Plantilla, lotes y certificados
+uploads/               Firma y logo subidos (se crea solo; cerrado a la web; no va a git)
 confirmar.php           PÚBLICO: enlace del correo para confirmar o rechazar la invitación
 autorregistro.php      Panel: QR + enlace de autorregistro
 registro_admin.php     Panel: registrar manualmente a alguien
@@ -174,7 +185,7 @@ esto a un hosting.
 **Si ya tenías la base de datos creada**, importa en phpMyAdmin, en este
 orden: `migracion_reportes.sql`, `migracion_porteria.sql`,
 `migracion_codigos.sql`, `migracion_roles.sql`, `migracion_eventos.sql`,
-`migracion_invitaciones.sql`, `migracion_personas.sql` y `migracion_cronograma.sql`.
+`migracion_invitaciones.sql`, `migracion_personas.sql`, `migracion_cronograma.sql` y `migracion_certificados.sql`.
 
 - `index.php` es ahora la página de inicio: explica qué es el sistema y
   tiene **Iniciar sesión** y **Registrarme** para el personal de portería.
@@ -261,6 +272,10 @@ evento **activo** a la vez, y todo el panel trabaja sobre ese evento.
   *Aplicar cronograma a todos los días*), en la página de confirmación y en
   la tarjeta con el botón *Ver cronograma* (con selector de día). El
   enlace público es `cronograma_ver.php`.
+- **Descargar cronograma** (en *Eventos*, *Cronograma*, el resumen de un
+  evento archivado y la página pública): PDF con una hoja por día o imagen
+  PNG, con letra grande, logo y colores del SENA, para imprimir y pegar en
+  la sede. Se puede bajar un día o todos.
 
 ## 8. Administrador, estadísticas y exportes
 
@@ -335,7 +350,34 @@ en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
   `{evento}` y `{hora_entrada}`) y das clic en *Enviar aviso*. Queda
   registrado si se envió o no, y a quién ya se le mandó aviso.
 
-## 10. Cuando esto pase a la nube
+## 10. Certificados de asistencia
+
+Pestaña **Certificados** (solo administrador).
+
+- **Plantilla única** (*Editar plantilla y firma*): título, texto de la
+  certificación para cada criterio con marcadores (`{nombre}`, `{cedula}`,
+  `{evento}`, `{fechas}`, `{dias_asistidos}`, `{total_dias}`, `{tipo}`,
+  `{charla}`, `{charla_horario}`), pie, logo (por defecto el del SENA),
+  color del marco y sello institucional.
+- **Firma electrónica**: nombre y cargo del firmante y archivo de la firma
+  (PNG/JPG, hasta 2 MB). Sin archivo, el certificado lleva de ejemplo el
+  nombre del firmante escrito; al subir la firma oficial del director se
+  usa en todos los certificados que se descarguen o envíen desde ese momento.
+  Los archivos quedan en `uploads/`, que no es accesible desde la web.
+- **Criterios**: *asistencia completa* (entró todos los días del evento),
+  *parcial* (un mínimo de días, sin llegar a todos) o *charla corta*
+  (estuvo presente un mínimo de minutos durante una actividad del
+  cronograma, según sus entradas y salidas).
+- **Roles**: se elige a qué tipos de asistente se emiten (aprendices,
+  instructores, funcionarios, visitantes, contratistas, otros).
+- El sistema muestra **quién cumple y quién no**, con vista previa de cada
+  certificado. *Generar certificados* crea un **lote** (no se repite un
+  certificado que la persona ya tenga), que se descarga en **ZIP**, en un
+  solo PDF para imprimir, o se **envía por correo** con el PDF adjunto.
+- Cada certificado tiene un **código de verificación**; cualquiera puede
+  comprobarlo en `certificado_verificar.php`.
+
+## 11. Cuando esto pase a la nube
 
 Solo tendrías que:
 1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor),

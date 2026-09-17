@@ -484,3 +484,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cambios) { e.preventDefault(); e.returnValue = ''; }
   });
 });
+
+// Plantilla de certificados: los botones [data-insertar] ponen el marcador
+// en el último texto [data-marcadores] que tuvo el foco, donde está el cursor.
+document.addEventListener('DOMContentLoaded', function () {
+  var textos = document.querySelectorAll('textarea[data-marcadores]');
+  if (!textos.length) return;
+  var ultimo = textos[0];
+  textos.forEach(function (t) { t.addEventListener('focus', function () { ultimo = t; }); });
+  document.querySelectorAll('[data-insertar]').forEach(function (boton) {
+    boton.addEventListener('click', function () {
+      var marcador = boton.getAttribute('data-insertar');
+      var inicio = ultimo.selectionStart;
+      var fin = ultimo.selectionEnd;
+      ultimo.value = ultimo.value.slice(0, inicio) + marcador + ultimo.value.slice(fin);
+      ultimo.focus();
+      ultimo.selectionStart = ultimo.selectionEnd = inicio + marcador.length;
+    });
+  });
+});

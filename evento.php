@@ -136,10 +136,13 @@ require __DIR__ . '/includes/layout_top.php';
           <?php endif; ?>
         </p>
       </div>
+      <div class="crono-cabecera-acciones">
+      <?php $eventoDescarga = $eventoActual; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-outline btn-sm'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
       <form method="post" onsubmit="return confirm('¿Cerrar el evento <?= h($eventoActual['nombre']) ?>? Su historial queda archivado y el control de acceso deja de funcionar hasta que crees otro evento.');">
         <input type="hidden" name="accion" value="cerrar">
         <button type="submit" class="btn btn-out">Cerrar y archivar evento</button>
       </form>
+      </div>
     </div>
 
     <div class="stat-grid stat-grid--4" style="margin-bottom:22px;">

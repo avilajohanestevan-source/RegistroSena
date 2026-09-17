@@ -27,6 +27,7 @@ $pestanas = $esAdminSesion ? [
     'registro'      => ['registro_admin.php', 'Registro'],
     'porteria'      => ['porteria.php', 'Portería'],
     'evento'        => ['evento.php', 'Eventos'],
+    'certificados'  => ['certificados.php', 'Certificados'],
 ] : [
     'control'       => ['control.php', 'Control de acceso'],
 ];

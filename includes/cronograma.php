@@ -300,3 +300,15 @@ function cronogramaParaCorreo(mysqli $conn, $evento, $maxDias = 4) {
         'url'    => urlCronograma($hoy),
     ];
 }
+
+/** '2026-09-16' → '16 de septiembre de 2026' (con $conDia: 'miércoles 16 de septiembre de 2026'). */
+function fechaLarga($fecha, $conDia = false) {
+    if (!esFechaValida((string) $fecha)) {
+        return '';
+    }
+    $ts = strtotime($fecha);
+    $meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    $dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    $texto = date('j', $ts) . ' de ' . $meses[(int) date('n', $ts) - 1] . ' de ' . date('Y', $ts);
+    return $conDia ? $dias[(int) date('w', $ts)] . ' ' . $texto : $texto;
+}

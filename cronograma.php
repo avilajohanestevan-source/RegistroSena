@@ -166,9 +166,11 @@ $filaEditor = function ($n, array $item, array $errores = [], array $cruzaCon = 
           <a href="cronograma.php?vista=calendario" class="<?= $vista === 'calendario' ? 'activa' : '' ?>">Calendario</a>
         </div>
         <a class="btn btn-outline btn-sm" href="cronograma_ver.php" target="_blank" rel="noopener">Ver como asistente</a>
+        <?php $eventoDescarga = $eventoFila; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-outline btn-sm'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
         <a class="btn btn-outline btn-sm" href="invitaciones.php">Invitar asistentes</a>
       <?php else: ?>
         <a class="btn btn-outline btn-sm" href="evento_resumen.php?evento=<?= (int) $eventoFila['id'] ?>">← Resumen del evento</a>
+        <?php $eventoDescarga = $eventoFila; $consultaEventoDescarga = 'evento=' . (int) $eventoFila['id'] . '&'; $claseBotonDescarga = 'btn btn-outline btn-sm'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
       <?php endif; ?>
     </div>
   </div>
