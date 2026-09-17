@@ -881,7 +881,9 @@ tr.fila-apagada td{ color:var(--text-muted); }
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
   overflow:hidden; margin-bottom:20px; box-shadow:0 10px 30px -18px rgba(0,48,77,0.45);
 }
-.promo-imagen{ display:block; width:100%; max-height:420px; object-fit:cover; background:var(--sena-gris-claro); }
+.promo-imagen{ display:block; width:100%; height:auto; background:var(--sena-gris-claro); }
+.promo--imagen{ margin:0 0 20px; }
+.promo--imagen[hidden]{ display:none; }
 .promo-respaldo{
   display:flex; align-items:center; justify-content:center; gap:18px; padding:34px 24px;
   background:var(--sena-azul); border-bottom:6px solid var(--sena-verde); color:#fff;

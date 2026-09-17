@@ -52,13 +52,12 @@ require __DIR__ . '/includes/head.php';
 <body>
   <?php require __DIR__ . '/includes/header_publico.php'; ?>
   <main class="content content-center"><div class="content-inner" style="max-width:720px;">
-    <?php if ($invitacion && $abierto && $invitacion['estado'] !== 'confirmado'): ?>
-      <?php
-        $eventoPromo = $eventoInvitado;
-        $saludoPromo = $invitacion['nombre'];
-        $botonPromo = ['Confirmar mi asistencia', '#confirmar'];
-        require __DIR__ . '/includes/tarjeta_promocional.php';
-      ?>
+    <?php if ($invitacion && $abierto && srcImagenEvento($eventoInvitado)): ?>
+      <?php // Aquí va solo la imagen promocional completa: la tarjeta de abajo ya tiene el saludo y los botones. ?>
+      <figure class="promo promo--imagen">
+        <img class="promo-imagen" src="<?= h(srcImagenEvento($eventoInvitado)) ?>" alt="<?= h(altImagenEvento($eventoInvitado)) ?>"
+             onerror="this.closest('figure').hidden=true;">
+      </figure>
     <?php endif; ?>
     <div class="card card--marca portal-card" style="text-align:center;" id="confirmar">
 
