@@ -36,7 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoActual) {
         $cronogramaCorreo = !empty($_POST['incluir_cronograma']) ? cronogramaParaCorreo($conn, eventoPorId($conn, $eventoActual['id'])) : null;
         $enviadas = 0;
         if ($nuevas) {
-            $resultados = enviarInvitaciones($nuevas, $nombreEvento, $textoDelHorario, $cronogramaCorreo);
+            $promo = promocionParaCorreo(eventoPorId($conn, $eventoActual['id']), !empty($_POST['incluir_imagen']));
+            $resultados = enviarInvitaciones($nuevas, $nombreEvento, $textoDelHorario, $cronogramaCorreo, $promo);
             foreach ($nuevas as $invitacion) {
                 [$ok] = $resultados[$invitacion['id']];
                 if ($ok) {
@@ -49,12 +50,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoActual) {
         exit;
     }
 
+    if ($accion === 'invitar_correo') {
+        [$lista, $invalidas] = leerListaInvitados($_POST['lista'] ?? '');
+        $nuevas = [];
+        $yaInscritos = 0;
+        foreach ($lista as [$nombre, $correo]) {
+            // Quien ya está registrado en el evento con ese correo no necesita invitación.
+            $stmt = $conn->prepare("SELECT 1 FROM asistentes WHERE evento_id = ? AND correo = ?");
+            $eventoId = (int) $eventoActual['id'];
+            $stmt->bind_param('is', $eventoId, $correo);
+            $stmt->execute();
+            $inscrito = (bool) $stmt->get_result()->fetch_row();
+            $stmt->close();
+            if ($inscrito) {
+                $yaInscritos++;
+                continue;
+            }
+            $invitacion = crearInvitacionCorreo($conn, $eventoActual['id'], $nombre, $correo, $usuario['id']);
+            if ((int) $invitacion['inscrito'] === 0) {
+                $nuevas[] = $invitacion;
+            }
+        }
+        $enviadas = 0;
+        if ($nuevas) {
+            $eventoFila = eventoPorId($conn, $eventoActual['id']);
+            $cronogramaCorreo = !empty($_POST['incluir_cronograma']) ? cronogramaParaCorreo($conn, $eventoFila) : null;
+            $resultados = enviarInvitaciones($nuevas, $nombreEvento, $textoDelHorario, $cronogramaCorreo, promocionParaCorreo($eventoFila, !empty($_POST['incluir_imagen'])));
+            foreach ($nuevas as $invitacion) {
+                if ($resultados[$invitacion['id']][0]) {
+                    marcarInvitacionEnviada($conn, $invitacion['id']);
+                    $enviadas++;
+                }
+            }
+        }
+        header('Location: invitaciones.php?' . http_build_query([
+            'por_correo' => count($nuevas), 'enviadas' => $enviadas, 'invalidas' => count($invalidas), 'ya_inscritos' => $yaInscritos,
+        ]));
+        exit;
+    }
+
     if ($accion === 'reenviar') {
         $invitacion = invitacionPorId($conn, (int) ($_POST['id'] ?? 0));
         $enviadas = 0;
         if ($invitacion && (int) $invitacion['evento_id'] === (int) $eventoActual['id']) {
             // Al reenviar va el cronograma actual del evento, si tiene.
-            $resultados = enviarInvitaciones([$invitacion], $nombreEvento, $textoDelHorario, cronogramaParaCorreo($conn, $eventoActual));
+            $resultados = enviarInvitaciones([$invitacion], $nombreEvento, $textoDelHorario, cronogramaParaCorreo($conn, $eventoActual), promocionParaCorreo($eventoActual));
             [$ok] = $resultados[$invitacion['id']];
             if ($ok) {
                 marcarInvitacionEnviada($conn, $invitacion['id']);
@@ -92,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoActual) {
         // Añade al evento, en lote, a todos los que ya confirmaron.
         $inscritos = 0;
         foreach (invitacionesDelEvento($conn, $eventoActual['id']) as $invitacion) {
-            if ($invitacion['estado'] === 'confirmado' && (int) $invitacion['inscrito'] === 0) {
+            if ($invitacion['estado'] === 'confirmado' && (int) $invitacion['inscrito'] === 0 && (string) $invitacion['cedula'] !== '') {
                 inscribirInvitacion($conn, $invitacion);
                 $inscritos++;
             }
@@ -118,6 +158,17 @@ if (($_GET['aviso'] ?? '') === 'evento_creado') {
                 ? 'el correo se envió a todos.'
                 : $enviadas . ' correo(s) enviados; a los demás puedes reenviarles desde la lista.')];
     }
+} elseif (isset($_GET['por_correo'])) {
+    $n = (int) $_GET['por_correo'];
+    $enviadas = (int) ($_GET['enviadas'] ?? 0);
+    $partes = [$n . ($n === 1 ? ' invitación por correo' : ' invitaciones por correo') . ' · ' . $enviadas . ($enviadas === 1 ? ' correo enviado' : ' correos enviados') . '.'];
+    if ((int) ($_GET['invalidas'] ?? 0)) {
+        $partes[] = (int) $_GET['invalidas'] . ' líneas no tenían un correo válido.';
+    }
+    if ((int) ($_GET['ya_inscritos'] ?? 0)) {
+        $partes[] = (int) $_GET['ya_inscritos'] . ' ya estaban registrados en el evento.';
+    }
+    $aviso = [$n > 0 && $enviadas === $n ? 'success' : 'warning', implode(' ', $partes)];
 } elseif (isset($_GET['reenviadas'])) {
     $aviso = (int) $_GET['reenviadas'] === 1
         ? ['success', 'Invitación reenviada por correo.']
@@ -187,6 +238,12 @@ require __DIR__ . '/includes/layout_top.php';
     <div class="stat-card out"><div class="label">Pendientes</div><div class="value"><?= $resumen['pendiente'] ?></div></div>
     <div class="stat-card gris"><div class="label">No asistirán</div><div class="value"><?= $resumen['rechazado'] ?></div></div>
   </div>
+  <p class="invitaciones-origen">
+    <strong>Por correo:</strong> <?= $resumen['email_link'] ?> invitaciones · <?= $resumen['abiertas'] ?> abrieron su enlace · <?= $resumen['por_correo_inscritos'] ?> se registraron
+    &nbsp;·&nbsp; <strong>Por enlace público:</strong> <?= $resumen['public_link'] ?> registrados
+    &nbsp;·&nbsp; <button type="button" class="boton-enlace" onclick="copiarEnlace('enlacePublicoLista', this.id)" id="copiarPublicoLista">Copiar enlace público</button>
+    <input type="text" id="enlacePublicoLista" value="<?= h(urlEnlacePublico()) ?>" readonly class="sr-only" tabindex="-1" aria-hidden="true">
+  </p>
 
   <div class="crono-estado">
     <?php if ($cronogramaEvento): ?>
@@ -243,6 +300,15 @@ require __DIR__ . '/includes/layout_top.php';
           Se enviará un correo con su enlace para confirmar a las personas seleccionadas.
         </p>
         <div class="modal-opciones">
+          <label class="check-linea">
+            <input type="checkbox" name="incluir_imagen" value="1"<?= srcImagenEvento($eventoActual) ? ' checked' : ' disabled' ?>>
+            <span>
+              <strong>Incluir imagen promocional</strong>
+              <small><?= srcImagenEvento($eventoActual)
+                  ? 'La misma imagen del evento, como tarjeta destacada del correo.'
+                  : 'El evento no tiene imagen: el correo lleva una tarjeta con el logo del SENA.' ?></small>
+            </span>
+          </label>
           <label class="check-linea">
             <input type="checkbox" name="incluir_cronograma" value="1"<?= $cronogramaEvento ? ' checked' : ' disabled' ?>>
             <span>
@@ -308,12 +374,13 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Persona</th><th>Correo</th><th>Estado</th><th>En el evento</th><th>Enviada</th><th>Respondió</th><th></th></tr></thead>
+        <thead><tr><th>Persona</th><th>Correo</th><th>Origen</th><th>Estado</th><th>En el evento</th><th>Enviada</th><th>Abrió el enlace</th><th>Respondió</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($invitaciones as $i): ?>
             <tr>
-              <td class="col-nombre"><?= h($i['nombre']) ?><div class="celda-detalle">C.C. <?= h($i['cedula']) ?></div></td>
+              <td class="col-nombre"><?= h($i['nombre']) ?><div class="celda-detalle"><?= (string) $i['cedula'] !== '' ? 'C.C. ' . h($i['cedula']) : 'Nuevo · aún sin registrarse' ?></div></td>
               <td><?= h($i['correo'] !== '' ? $i['correo'] : '—') ?></td>
+              <td><?= $i['origen'] === 'public_link' ? '<span class="status-chip neutro">Enlace público</span>' : '<span class="status-chip azul">Correo</span>' ?></td>
               <td>
                 <?php if ($i['estado'] === 'confirmado'): ?>
                   <span class="status-chip in">Confirmado</span>
@@ -325,9 +392,10 @@ require __DIR__ . '/includes/layout_top.php';
               </td>
               <td><?= (int) $i['inscrito'] === 1 ? '<span class="status-chip neutro">Inscrito</span>' : '<span class="text-muted">—</span>' ?></td>
               <td class="mono"><?= $i['enviado_en'] ? fmtFecha($i['enviado_en']) : '—' ?></td>
+              <td class="mono"><?= $i['origen'] === 'email_link' && $i['abierto_en'] ? fmtFecha($i['abierto_en']) : '—' ?></td>
               <td class="mono"><?= $i['respondido_en'] ? fmtFecha($i['respondido_en']) : '—' ?></td>
               <td class="acciones-fila">
-                <?php if ($i['estado'] !== 'rechazado' && $i['correo'] !== '' && EMAIL_HABILITADO): ?>
+                <?php if ($i['origen'] === 'email_link' && (int) $i['inscrito'] === 0 && $i['estado'] !== 'rechazado' && $i['correo'] !== '' && EMAIL_HABILITADO): ?>
                   <form method="post" data-enviando="Enviando…">
                     <input type="hidden" name="accion" value="reenviar">
                     <input type="hidden" name="id" value="<?= (int) $i['id'] ?>">

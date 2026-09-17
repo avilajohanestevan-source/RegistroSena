@@ -20,7 +20,10 @@ require __DIR__ . '/includes/head.php';
 ?>
 <body>
   <?php require __DIR__ . '/includes/header_publico.php'; ?>
-  <main class="content content-center"><div class="content-inner" style="max-width:620px;">
+  <main class="content content-center"><div class="content-inner" style="max-width:720px;">
+    <?php if (srcImagenEvento($eventoActual) && mostrarPromocionEnPagina($eventoActual, false)): ?>
+      <?php $eventoPromo = $eventoActual; $botonPromo = ['Regístrate aquí', 'registro.php']; require __DIR__ . '/includes/tarjeta_promocional.php'; ?>
+    <?php endif; ?>
     <div class="card card--marca portal-card" style="text-align:center;">
       <h2 class="section-title">¿Qué necesitas hacer?</h2>
       <p class="section-sub">Elige una opción para continuar.</p>
@@ -44,6 +47,9 @@ require __DIR__ . '/includes/head.php';
         Si es tu primera vez aquí, regístrate — quedas con tu propio código QR para entrar y salir.
         Si ya te registraste antes y perdiste tu tarjeta o correo, consúltala de nuevo con tu cédula.
       </p>
+    </div>
+    <div class="card">
+      <?php require __DIR__ . '/includes/facebook.php'; ?>
     </div>
   </div></main>
   <?php require __DIR__ . '/includes/footer.php'; ?>

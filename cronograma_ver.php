@@ -26,6 +26,9 @@ require __DIR__ . '/includes/head.php';
   <?php require __DIR__ . '/includes/header_publico.php'; ?>
   <main class="content"><div class="content-inner" style="max-width:680px;">
     <div class="card card--marca">
+      <?php if (srcImagenEvento($eventoActual) && mostrarPromocionEnPagina($eventoActual, false)): ?>
+        <img class="cronograma-promo" src="<?= h(srcImagenEvento($eventoActual)) ?>" alt="<?= h(altImagenEvento($eventoActual)) ?>">
+      <?php endif; ?>
       <h2 class="section-title">Cronograma</h2>
       <p class="section-sub"><strong><?= h($evento) ?></strong><?= horarioConfigurado($horario) ? ' · ' . h(textoHorario($horario)) : '' ?></p>
       <?php if (!$cronograma): ?>

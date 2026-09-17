@@ -64,6 +64,10 @@ includes/
   cronograma_descarga.php Botón y ventana "Descargar cronograma"
   certificados.php      Certificados: plantilla, criterios de asistencia, lotes y PDF
   vista_previa.php      Ventana de vista previa de archivos (PDF / Excel)
+  promocion.php         Imagen promocional, enlaces de invitación (token / público) y origen
+  tarjeta_promocional.php Tarjeta del evento en la página de registro y confirmación
+  invitar_evento.php    Botón "Invitar" del evento: por correo, enlace público o anteriores
+  facebook.php          Botón "Síguenos en Facebook" (SENA Villeta)
   alerta.php            Alerta modal (avisos de sesión)
   no_autorizado.php     Respuesta 401 cuando se entra por URL sin sesión
   estadisticas.php      Cálculos de asistencia para estadísticas y exportes
@@ -112,7 +116,9 @@ certificado_plantilla.php Panel (admin): texto, logo, firma electrónica, sello 
 certificado_pdf.php    Panel (admin): PDF de un certificado, de un lote o vista previa; ZIP
 certificado_verificar.php PÚBLICO: verificar un certificado con su código
 migracion_certificados.sql Plantilla, lotes y certificados
-uploads/               Firma y logo subidos (se crea solo; cerrado a la web; no va a git)
+uploads/               Firma, logo e imágenes promocionales subidas (se crea solo; cerrado a la web; no va a git)
+evento_imagen.php      PÚBLICO: sirve la imagen promocional del evento (también para descargarla)
+migracion_promocion.sql Imagen promocional por evento; origen y apertura de las invitaciones
 confirmar.php           PÚBLICO: enlace del correo para confirmar o rechazar la invitación
 autorregistro.php      Panel: QR + enlace de autorregistro
 registro_admin.php     Panel: registrar manualmente a alguien
@@ -187,7 +193,7 @@ esto a un hosting.
 **Si ya tenías la base de datos creada**, importa en phpMyAdmin, en este
 orden: `migracion_reportes.sql`, `migracion_porteria.sql`,
 `migracion_codigos.sql`, `migracion_roles.sql`, `migracion_eventos.sql`,
-`migracion_invitaciones.sql`, `migracion_personas.sql`, `migracion_cronograma.sql` y `migracion_certificados.sql`.
+`migracion_invitaciones.sql`, `migracion_personas.sql`, `migracion_cronograma.sql`, `migracion_certificados.sql` y `migracion_promocion.sql`.
 
 - `index.php` es ahora la página de inicio: explica qué es el sistema y
   tiene **Iniciar sesión** y **Registrarme** para el personal de portería.
@@ -282,6 +288,33 @@ evento **activo** a la vez, y todo el panel trabaja sobre ese evento.
   siguiente hoja). Los invitados también lo descargan desde la página de la
   invitación, desde su tarjeta con el QR y desde el enlace del correo.
 
+- **Imagen promocional del evento** (formulario del evento): PNG, JPG o SVG
+  de hasta 5 MB, con texto alternativo. Se usa en los correos de invitación
+  y re-invitación, en la página de registro, en el portal y en el
+  cronograma público, y se puede descargar para imprimirla o ponerla en las
+  pantallas de la sede. Opción: *en el correo y la página de registro*
+  (recomendado) o *solo en el correo*. Los archivos se sirven con
+  `evento_imagen.php`; los SVG con scripts o enlaces externos se rechazan.
+- **Invitar** (botón del evento activo): *por correo* (una persona por línea,
+  nombre y correo; a cada una le llega su enlace personal), *enlace público*
+  para copiar y compartir, o *re-invitar asistentes anteriores*, también con
+  la imagen. Todas las invitaciones se ven en *Invitaciones* con su origen.
+- **Acceso por correo vs. acceso directo**: el correo lleva
+  `registro.php?t=TOKEN`. Con token se muestra la versión personalizada
+  ("Hola, Nombre, estás invitado", la imagen aunque esté en *solo en el
+  correo*, y el formulario con su nombre y correo) y se guarda cuándo abrió
+  el enlace; al registrarse, la invitación queda inscrita. Si la persona ya
+  estuvo en otro evento, el mismo enlace la lleva a confirmar con su QR. El
+  enlace público es `registro.php?origen=enlace` y quien se registra por ahí
+  queda como invitación con origen `public_link`; `registro.php` a secas es
+  el acceso directo (el QR de la sede). En *Invitaciones* se ven los
+  totales: invitados por correo, cuántos abrieron su enlace, cuántos se
+  registraron y cuántos llegaron por el enlace público.
+- **Correo de invitación**: asunto "Estás invitado a … — Confirma tu
+  asistencia", tarjeta con la imagen (o una tarjeta con el logo si no hay
+  imagen o es SVG), botón *Regístrate aquí* con el enlace personal, *Ver
+  cronograma*, botón *Síguenos en Facebook* (SENA Villeta) y versión en
+  texto plano.
 ## 8. Administrador, estadísticas y exportes
 
 Hay dos roles de cuenta:

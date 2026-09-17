@@ -11,6 +11,14 @@ require_once __DIR__ . '/includes/invitaciones.php';
 
 $token = $_POST['t'] ?? $_GET['t'] ?? '';
 $invitacion = invitacionPorToken($conn, $token);
+if ($invitacion) {
+    marcarInvitacionAbierta($conn, $invitacion);
+    // Invitación a alguien nuevo (sin cédula): tiene que registrarse.
+    if ($invitacion['cedula'] === null || $invitacion['cedula'] === '') {
+        header('Location: registro.php?t=' . urlencode($invitacion['token']));
+        exit;
+    }
+}
 $eventoInvitado = $invitacion ? eventoPorId($conn, $invitacion['evento_id']) : null;
 if ($eventoInvitado) {
     fijarEventoContexto($eventoInvitado['id']);
@@ -43,8 +51,16 @@ require __DIR__ . '/includes/head.php';
 ?>
 <body>
   <?php require __DIR__ . '/includes/header_publico.php'; ?>
-  <main class="content content-center"><div class="content-inner" style="max-width:620px;">
-    <div class="card card--marca portal-card" style="text-align:center;">
+  <main class="content content-center"><div class="content-inner" style="max-width:720px;">
+    <?php if ($invitacion && $abierto && $invitacion['estado'] !== 'confirmado'): ?>
+      <?php
+        $eventoPromo = $eventoInvitado;
+        $saludoPromo = $invitacion['nombre'];
+        $botonPromo = ['Confirmar mi asistencia', '#confirmar'];
+        require __DIR__ . '/includes/tarjeta_promocional.php';
+      ?>
+    <?php endif; ?>
+    <div class="card card--marca portal-card" style="text-align:center;" id="confirmar">
 
       <?php if (!$invitacion): ?>
         <h2 class="section-title">Esta invitación no es válida</h2>
@@ -107,6 +123,9 @@ require __DIR__ . '/includes/head.php';
         </div>
       </div>
     <?php endif; ?>
+    <div class="card">
+      <?php require __DIR__ . '/includes/facebook.php'; ?>
+    </div>
   </div></main>
   <?php require __DIR__ . '/includes/footer.php'; ?>
   <script src="assets/js/app.js?v=<?= assetVersion('assets/js/app.js') ?>"></script>

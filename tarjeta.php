@@ -102,6 +102,9 @@ if ($panel) {
     require __DIR__ . '/includes/layout_bottom.php';
 } else {
 ?>
+    <?php if ($asistente): ?>
+      <div class="card"><?php require __DIR__ . '/includes/facebook.php'; ?></div>
+    <?php endif; ?>
   </div></main>
   <?php require __DIR__ . '/includes/footer.php'; ?>
   <script src="assets/js/qrcode.min.js?v=<?= assetVersion('assets/js/qrcode.min.js') ?>"></script>

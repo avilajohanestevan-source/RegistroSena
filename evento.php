@@ -9,7 +9,7 @@
 require_once __DIR__ . '/includes/panel_admin.php';
 
 $roles = rolesUsuario();
-$valores = ['nombre' => '', 'fecha_inicio' => '', 'fecha_fin' => '', 'hora_inicio' => '', 'hora_fin' => '', 'cronograma_modo' => 'mismo'];
+$valores = ['nombre' => '', 'fecha_inicio' => '', 'fecha_fin' => '', 'hora_inicio' => '', 'hora_fin' => '', 'cronograma_modo' => 'mismo', 'imagen_alt' => '', 'imagen_en_pagina' => 1];
 if ($eventoActual) {
     $valores = [
         'nombre'       => $eventoActual['nombre'],
@@ -18,6 +18,8 @@ if ($eventoActual) {
         'hora_inicio'  => substr($eventoActual['hora_inicio'], 0, 5),
         'hora_fin'     => substr($eventoActual['hora_fin'], 0, 5),
         'cronograma_modo' => modoCronograma($eventoActual),
+        'imagen_alt'      => $eventoActual['imagen_alt'],
+        'imagen_en_pagina' => (int) $eventoActual['imagen_en_pagina'],
     ];
 }
 $errores = [];
@@ -45,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'hora_inicio'  => trim($_POST['hora_inicio'] ?? ''),
             'hora_fin'     => trim($_POST['hora_fin'] ?? ''),
             'cronograma_modo' => ($_POST['cronograma_modo'] ?? '') === 'por_dia' ? 'por_dia' : 'mismo',
+            'imagen_alt'      => trim($_POST['imagen_alt'] ?? ''),
+            'imagen_en_pagina' => ($_POST['imagen_en_pagina'] ?? '1') === '0' ? 0 : 1,
         ];
         if (mb_strlen($valores['nombre']) < 3) {
             $errores['nombre'] = 'Escribe el nombre del evento.';
@@ -70,18 +74,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // La imagen promocional se sube solo si lo demás está bien.
+        $imagenNueva = null;
+        if (!$errores) {
+            [$imagenNueva, $errorImagen] = guardarImagenEvento($_FILES['imagen'] ?? []);
+            if ($errorImagen !== '') {
+                $errores['imagen'] = $errorImagen;
+            }
+        }
+
         if (!$errores) {
             if ($accion === 'crear') {
                 [$id, $error] = crearEvento($conn, $valores, $usuario['id']);
                 if (!$id) {
                     $errores['nombre'] = $error;
+                    if ($imagenNueva) {
+                        borrarImagenEvento($imagenNueva);
+                    }
                 } else {
+                    guardarPromocionEvento($conn, $id, (string) $imagenNueva, $valores['imagen_alt'], $valores['imagen_en_pagina']);
                     // Recién creado el evento se arma su cronograma (y desde ahí se invita).
                     header('Location: cronograma.php?aviso=evento_creado');
                     exit;
                 }
             } else {
                 actualizarEvento($conn, $eventoActual['id'], $valores);
+                $imagen = $eventoActual['imagen_promo'];
+                if ($imagenNueva || !empty($_POST['quitar_imagen'])) {
+                    borrarImagenEvento($imagen);
+                    $imagen = (string) $imagenNueva;
+                }
+                guardarPromocionEvento($conn, $eventoActual['id'], $imagen, $valores['imagen_alt'], $valores['imagen_en_pagina']);
                 header('Location: evento.php?aviso=guardado');
                 exit;
             }
@@ -116,7 +139,7 @@ require __DIR__ . '/includes/layout_top.php';
   <div class="card card--marca">
     <h2 class="section-title">Crear un evento</h2>
     <p class="section-sub">No hay ningún evento activo: el control de acceso y el autorregistro están cerrados hasta que crees uno. El evento nuevo arranca sin asistentes ni movimientos; lo del evento anterior queda guardado en el archivo.</p>
-    <form method="post" novalidate>
+    <form method="post" enctype="multipart/form-data" novalidate>
       <input type="hidden" name="accion" value="crear">
       <?php require __DIR__ . '/includes/form_evento.php'; ?>
       <div class="form-actions">
@@ -137,6 +160,7 @@ require __DIR__ . '/includes/layout_top.php';
         </p>
       </div>
       <div class="crono-cabecera-acciones">
+      <?php require __DIR__ . '/includes/invitar_evento.php'; ?>
       <?php $eventoDescarga = $eventoActual; $consultaEventoDescarga = ''; $claseBotonDescarga = 'btn btn-outline btn-sm'; require __DIR__ . '/includes/cronograma_descarga.php'; ?>
       <form method="post" onsubmit="return confirm('¿Cerrar el evento <?= h($eventoActual['nombre']) ?>? Su historial queda archivado y el control de acceso deja de funcionar hasta que crees otro evento.');">
         <input type="hidden" name="accion" value="cerrar">
@@ -152,13 +176,12 @@ require __DIR__ . '/includes/layout_top.php';
       <div class="stat-card rojo"><div class="label">Irregularidades</div><div class="value"><?= (int) $metricas['irregularidades'] ?></div></div>
     </div>
 
-    <form method="post" novalidate>
+    <form method="post" enctype="multipart/form-data" novalidate>
       <input type="hidden" name="accion" value="guardar">
-      <?php require __DIR__ . '/includes/form_evento.php'; ?>
+      <?php $eventoImagen = $eventoActual; require __DIR__ . '/includes/form_evento.php'; ?>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Guardar cambios</button>
         <a class="btn btn-outline" href="cronograma.php">Cronograma</a>
-        <a class="btn btn-outline" href="invitaciones.php">Invitar asistentes anteriores</a>
         <a class="btn btn-outline" href="estadisticas.php">Ver estadísticas</a>
       </div>
     </form>

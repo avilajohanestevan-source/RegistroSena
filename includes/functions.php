@@ -10,6 +10,7 @@
  */
 require_once __DIR__ . '/eventos.php';
 require_once __DIR__ . '/cronograma.php';
+require_once __DIR__ . '/promocion.php';
 
 function h($valor) {
     return htmlspecialchars($valor ?? '', ENT_QUOTES, 'UTF-8');

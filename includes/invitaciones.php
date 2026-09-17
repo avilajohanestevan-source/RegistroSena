@@ -52,12 +52,21 @@ function invitacionesDelEvento(mysqli $conn, $eventoId) {
 
 /** Cuántas invitaciones hay de cada estado y cuántas ya quedaron inscritas. */
 function resumenInvitaciones(array $invitaciones) {
-    $resumen = ['total' => count($invitaciones), 'pendiente' => 0, 'confirmado' => 0, 'rechazado' => 0, 'inscritos' => 0, 'por_inscribir' => 0];
+    $resumen = ['total' => count($invitaciones), 'pendiente' => 0, 'confirmado' => 0, 'rechazado' => 0, 'inscritos' => 0, 'por_inscribir' => 0,
+        'email_link' => 0, 'public_link' => 0, 'abiertas' => 0, 'por_correo_inscritos' => 0];
     foreach ($invitaciones as $i) {
+        $origen = ($i['origen'] ?? 'email_link') === 'public_link' ? 'public_link' : 'email_link';
+        $resumen[$origen]++;
+        if ($origen === 'email_link' && !empty($i['abierto_en'])) {
+            $resumen['abiertas']++;
+        }
+        if ($origen === 'email_link' && (int) $i['inscrito'] === 1) {
+            $resumen['por_correo_inscritos']++;
+        }
         $resumen[$i['estado']] = ($resumen[$i['estado']] ?? 0) + 1;
         if ((int) $i['inscrito'] === 1) {
             $resumen['inscritos']++;
-        } elseif ($i['estado'] === 'confirmado') {
+        } elseif ($i['estado'] === 'confirmado' && (string) $i['cedula'] !== '') {
             $resumen['por_inscribir']++;
         }
     }
@@ -88,7 +97,7 @@ function invitacionPorToken(mysqli $conn, $token) {
 
 /** Enlace del correo con el que la persona confirma o rechaza. */
 function urlConfirmacion(array $invitacion) {
-    return urlDelSistema('confirmar.php') . '?t=' . $invitacion['token'];
+    return urlInvitacion($invitacion);
 }
 
 /**

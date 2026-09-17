@@ -875,3 +875,49 @@ tr.fila-apagada td{ color:var(--text-muted); }
 .cert-verificar-form{ display:flex; gap:8px; max-width:420px; margin:18px auto 0; }
 .cert-verificar-form input{ flex:1; }
 .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+
+/* ---------- promoción del evento ---------- */
+.promo{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  overflow:hidden; margin-bottom:20px; box-shadow:0 10px 30px -18px rgba(0,48,77,0.45);
+}
+.promo-imagen{ display:block; width:100%; max-height:420px; object-fit:cover; background:var(--sena-gris-claro); }
+.promo-respaldo{
+  display:flex; align-items:center; justify-content:center; gap:18px; padding:34px 24px;
+  background:var(--sena-azul); border-bottom:6px solid var(--sena-verde); color:#fff;
+}
+.promo-respaldo[hidden]{ display:none; }
+.promo-respaldo img{ width:64px; height:64px; }
+.promo-respaldo span{ font-size:24px; font-weight:700; line-height:1.2; }
+.promo-cuerpo{ padding:22px 24px 24px; text-align:center; }
+.promo-saludo{ margin:0; color:var(--text-muted); font-size:15px; }
+.promo-titulo{ margin:4px 0 8px; font-size:26px; color:var(--sena-azul); line-height:1.2; }
+.promo-fecha{ display:inline-flex; align-items:center; gap:8px; margin:0 0 16px; font-weight:600; color:var(--sena-verde-oscuro); }
+.promo-acciones{ display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+@media (max-width:520px){ .promo-titulo{ font-size:21px; } .promo-acciones .btn{ flex:1 1 100%; } }
+
+.facebook-sena{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.facebook-sena p{ margin:0; color:var(--text-muted); flex:1 1 260px; }
+.btn-facebook{ background:#1877F2; border-color:#1877F2; color:#fff; }
+.btn-facebook:hover{ background:#0f63d0; border-color:#0f63d0; color:#fff; }
+
+.promo-campos{ border:1px dashed var(--border); border-radius:12px; padding:14px 16px 16px; margin:18px 0 6px; }
+.promo-campos legend{ font-size:13px; font-weight:600; padding:0 6px; }
+.promo-campos-grid{ display:grid; grid-template-columns:minmax(0, 280px) minmax(0, 1fr); gap:18px; align-items:start; }
+@media (max-width:760px){ .promo-campos-grid{ grid-template-columns:1fr; } }
+.promo-miniatura{ display:block; width:100%; max-height:180px; object-fit:cover; border-radius:10px; border:1px solid var(--border); }
+.promo-miniatura--vacia{ display:flex; align-items:center; justify-content:center; min-height:130px; padding:14px; text-align:center; font-size:13px; color:var(--text-muted); background:var(--sena-gris-claro); }
+.opciones-lista{ display:flex; flex-direction:column; gap:8px; }
+
+.modal-invitar-evento{ width:min(620px, calc(100vw - 32px)); max-height:calc(100dvh - 48px); overflow:auto; }
+.invitar-seccion{ padding:14px 0; border-top:1px solid var(--border); }
+.invitar-seccion h3{ font-size:15px; color:var(--sena-azul); margin:0 0 4px; }
+.invitar-seccion textarea{ width:100%; font-size:14px; }
+.copiar-enlace{ display:flex; gap:8px; }
+.copiar-enlace input{ flex:1; font-family:var(--font-mono); font-size:13px; }
+.invitaciones-origen{ font-size:13.5px; color:var(--text-muted); margin:-6px 0 18px; }
+.status-chip.azul{ background:#E3EEF5; color:var(--sena-azul); }
+.cronograma-promo{ display:block; width:100%; border-radius:10px; margin-bottom:16px; }
+.promo-fecha .icon, .btn-facebook .icon, .modal-invitar-evento .icon, .crono-cabecera-acciones .btn .icon{
+  width:18px; height:18px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
