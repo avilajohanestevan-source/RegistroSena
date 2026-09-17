@@ -13,7 +13,8 @@ require_once __DIR__ . '/includes/mailer.php';
 $usuario = usuarioActual();
 $evento = nombreEvento($conn);
 $roles = rolesUsuario();
-$valores = ['nombre' => '', 'correo' => '', 'cedula' => '', 'rol' => 'portero'];
+$permisos = puntosControl();
+$valores = ['nombre' => '', 'correo' => '', 'cedula' => '', 'rol' => 'portero', 'punto' => 'ambas'];
 $errores = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -25,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'correo' => trim($_POST['correo'] ?? ''),
             'cedula' => soloDigitos($_POST['cedula'] ?? ''),
             'rol'    => array_key_exists($_POST['rol'] ?? '', $roles) ? $_POST['rol'] : 'portero',
+            'punto'  => array_key_exists($_POST['punto'] ?? '', $permisos) ? $_POST['punto'] : 'ambas',
         ];
         if (mb_strlen($valores['nombre']) < 3) {
             $errores['nombre'] = 'Escribe el nombre de la persona.';
@@ -39,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errores) {
-            $codigo = crearCodigoPorteria($conn, $valores['nombre'], $valores['correo'], $valores['cedula'], $valores['rol'], $usuario['id']);
+            $codigo = crearCodigoPorteria($conn, $valores['nombre'], $valores['correo'], $valores['cedula'], $valores['rol'], $valores['punto'], $usuario['id']);
             // El código se envía siempre al correo (si el correo está configurado).
             $correo = 'no';
             if (EMAIL_HABILITADO) {
@@ -52,6 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: porteria.php?creado=' . $codigo['id'] . '&correo=' . $correo);
             exit;
         }
+    } elseif ($accion === 'permisos') {
+        // El administrador cambia el rol y el permiso de una cuenta.
+        $id = (int) ($_POST['id'] ?? 0);
+        $rol = array_key_exists($_POST['rol'] ?? '', $roles) ? $_POST['rol'] : 'portero';
+        $punto = array_key_exists($_POST['punto'] ?? '', $permisos) ? $_POST['punto'] : 'ambas';
+        if ($id > 0) {
+            actualizarUsuario($conn, $id, $rol, $punto);
+        }
+        header('Location: porteria.php?permisos=1');
+        exit;
     } elseif ($accion === 'reenviar' || $accion === 'anular') {
         $codigo = codigoPorId($conn, (int) ($_POST['id'] ?? 0));
         if ($codigo && estadoCodigo($codigo) === 'disponible') {
@@ -148,6 +160,14 @@ require __DIR__ . '/includes/layout_top.php';
         </select>
       </div>
       <div>
+        <label for="punto">Permiso</label>
+        <select id="punto" name="punto">
+          <?php foreach ($permisos as $valor => $texto): ?>
+            <option value="<?= h($valor) ?>"<?= $valores['punto'] === $valor ? ' selected' : '' ?>><?= h($texto) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div>
         <label for="cedula">Cédula <span class="opt">(opcional: solo esa cédula podrá usar el código)</span></label>
         <input type="text" id="cedula" name="cedula" inputmode="numeric" value="<?= h($valores['cedula']) ?>" autocomplete="off">
         <?php if (!empty($errores['cedula'])): ?><div class="field-error"><?= h($errores['cedula']) ?></div><?php endif; ?>
@@ -171,13 +191,14 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Código</th><th>Para</th><th>Rol</th><th>Correo</th><th>Estado</th><th>Enviado</th><th>Creado</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>Para</th><th>Rol</th><th>Permiso</th><th>Correo</th><th>Estado</th><th>Enviado</th><th>Creado</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($codigos as $c): $estado = estadoCodigo($c); ?>
             <tr>
               <td class="codigo-celda"><?= h(formatoCodigo($c['codigo'])) ?></td>
               <td><?= h($c['nombre']) ?><?php if ($c['cedula'] !== ''): ?><div class="celda-detalle">Solo C.C. <?= h($c['cedula']) ?></div><?php endif; ?></td>
               <td><?= h($roles[$c['rol']] ?? $c['rol']) ?></td>
+              <td><?= h($permisos[$c['punto']] ?? $c['punto']) ?></td>
               <td><?= h($c['correo'] !== '' ? $c['correo'] : '—') ?></td>
               <td>
                 <?php if ($estado === 'disponible'): ?>
@@ -223,16 +244,28 @@ require __DIR__ . '/includes/layout_top.php';
   <?php else: ?>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Nombre</th><th>Rol</th><th>Cédula</th><th>Cuenta creada</th><th>Último turno</th><th>Turnos</th></tr></thead>
+        <thead><tr><th>Nombre</th><th>Cédula</th><th>Rol y permiso</th><th>Cuenta creada</th><th>Turnos</th><th></th></tr></thead>
         <tbody>
           <?php foreach ($cuentas as $p): ?>
             <tr>
-              <td><?= h($p['nombre']) ?><?php if ((int) $p['id'] === (int) $usuario['id']): ?> <span class="text-muted">(tú)</span><?php endif; ?></td>
-              <td><?= h($roles[$p['rol']] ?? $p['rol']) ?></td>
+              <td class="col-nombre"><?= h($p['nombre']) ?><?php if ((int) $p['id'] === (int) $usuario['id']): ?> <span class="text-muted">(tú)</span><?php endif; ?></td>
               <td class="cedula-cell"><?= h($p['cedula']) ?></td>
-              <td class="mono"><?= fmtFecha($p['creado_en']) ?></td>
-              <td class="mono"><?= $p['ultimo_turno'] ? fmtFecha($p['ultimo_turno']) : '—' ?></td>
+              <td>
+                <form method="post" class="form-permiso">
+                  <input type="hidden" name="accion" value="permisos">
+                  <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                  <select name="rol" aria-label="Rol de <?= h($p['nombre']) ?>">
+                    <?php foreach ($roles as $valor => $texto): ?><option value="<?= h($valor) ?>"<?= $p['rol'] === $valor ? ' selected' : '' ?>><?= h($texto) ?></option><?php endforeach; ?>
+                  </select>
+                  <select name="punto" aria-label="Permiso de <?= h($p['nombre']) ?>">
+                    <?php foreach ($permisos as $valor => $texto): ?><option value="<?= h($valor) ?>"<?= $p['punto'] === $valor ? ' selected' : '' ?>><?= h($texto) ?></option><?php endforeach; ?>
+                  </select>
+                  <button type="submit" class="boton-enlace">Guardar</button>
+                </form>
+              </td>
+              <td class="mono"><?= fmtFecha($p['creado_en']) ?><div class="celda-detalle">Último turno: <?= $p['ultimo_turno'] ? fmtFecha($p['ultimo_turno']) : '—' ?></div></td>
               <td><?= (int) $p['turnos'] ?></td>
+              <td></td>
             </tr>
           <?php endforeach; ?>
         </tbody>

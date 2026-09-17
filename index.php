@@ -4,44 +4,73 @@
  * personal. Con la sesión iniciada lleva al panel: el administrador a
  * Estadísticas y el portero al control de acceso.
  *
- * Cuentas nuevas: el administrador crea un código para cada persona en la
- * pestaña Portería y se le envía por correo. La persona solo escribe su
- * cédula, una contraseña y el código (el nombre y el rol salen del
- * código). La primera cuenta del sistema se crea con el código inicial de
- * config.php y queda como administrador.
+ * La sección del evento (fecha y horario) solo se muestra si hay un
+ * evento activo que todavía no ha terminado.
+ *
+ * Cuentas nuevas: el administrador crea un código en la pestaña Portería
+ * y se le envía por correo a la persona, que solo escribe su cédula, una
+ * contraseña y el código (el nombre, el rol y el permiso de entrada o
+ * salida salen del código). La primera cuenta del sistema se crea con el
+ * código inicial de config.php y queda como administrador.
  */
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/codigos_porteria.php';
 
+// Al llegar al inicio se borra la marca de "sesión cerrada": el aviso ya se dio.
+if (isset($_COOKIE['sena_sesion_cerrada'])) {
+    setcookie('sena_sesion_cerrada', '', ['expires' => time() - 3600, 'path' => '/']);
+}
+
+$evento = eventoActivo($conn);
+fijarEventoContexto($evento['id'] ?? 0);
+
 if (usuarioActual()) {
     header('Location: ' . paginaInicioRol());
     exit;
 }
 
-$evento = nombreEvento($conn);
-$horario = horarioEvento($conn);
-$puntos = puntosControl();
+$nombreEvento = $evento ? $evento['nombre'] : 'Control de ingreso SENA';
+$horario = horarioDeEvento($evento);
+$estadoIngreso = estadoHorario($horario);
+// La sección del evento se oculta si no hay evento activo o si ya terminó.
+$mostrarEvento = $evento && !eventoTerminado($evento);
+
+$textosAviso = [
+    'login'      => ['info', 'Es necesario iniciar sesión para acceder.'],
+    'salida'     => ['success', 'Sesión cerrada.'],
+    'solo_admin' => ['warning', 'Esa sección es solo para el administrador.'],
+];
+$aviso = $textosAviso[$_GET['aviso'] ?? ''] ?? null;
+// Los avisos de sesión, además, se muestran como alerta que hay que cerrar.
+$alertas = [
+    'login'      => ['titulo' => 'Es necesario iniciar sesión', 'mensaje' => 'Es necesario iniciar sesión para acceder.'],
+    'salida'     => ['titulo' => 'Sesión cerrada', 'mensaje' => 'La sesión ha sido cerrada. Necesitas volver a iniciar sesión para acceder.'],
+    'solo_admin' => ['titulo' => 'Sección del administrador', 'mensaje' => 'Esa sección es solo para el administrador.'],
+];
+$alerta = $alertas[$_GET['aviso'] ?? ''] ?? null;
+$destino = destinoSeguro($_GET['destino'] ?? '');
+
 $primeraCuenta = !hayPorteros($conn);
 // El enlace del correo con el código trae ?modo=registro&codigo=XXXX-XXXX.
 $codigoEnlace = normalizarCodigo($_GET['codigo'] ?? '');
 $modo = ($_GET['modo'] ?? '') === 'registro' || $codigoEnlace !== '' ? 'registro' : 'ingreso';
-$ingreso = ['cedula' => '', 'punto' => 'ambas'];
+$ingreso = ['cedula' => ''];
 $registro = ['nombre' => '', 'cedula' => '', 'codigo' => formatoCodigo($codigoEnlace)];
 $errores = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = $_POST['accion'] ?? '';
+    $destino = destinoSeguro($_POST['destino'] ?? '');
 
     if ($accion === 'ingresar') {
         $modo = 'ingreso';
-        $punto = array_key_exists($_POST['punto'] ?? '', $puntos) ? $_POST['punto'] : 'ambas';
-        $ingreso = ['cedula' => soloDigitos($_POST['cedula'] ?? ''), 'punto' => $punto];
+        $ingreso = ['cedula' => soloDigitos($_POST['cedula'] ?? '')];
         $usuario = $ingreso['cedula'] !== '' ? buscarUsuario($conn, $ingreso['cedula']) : null;
         if ($usuario && password_verify($_POST['contrasena'] ?? '', $usuario['contrasena'])) {
-            iniciarTurno($conn, $usuario, $punto);
-            header('Location: ' . paginaInicioRol());
+            iniciarTurno($conn, $usuario, $evento['id'] ?? 0);
+            header('Location: ' . ($destino !== '' ? $destino : paginaInicioRol()));
             exit;
         }
         $errores['ingreso'] = 'La cédula o la contraseña no son correctas.';
@@ -76,22 +105,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$errores) {
-            // El nombre y el rol los puso el administrador al crear el código;
-            // la primera cuenta (código inicial de config.php) es el administrador.
+            // El nombre, el rol y el permiso los puso el administrador al crear
+            // el código; la primera cuenta (código inicial de config.php) es el
+            // administrador y puede registrar entradas y salidas.
             $nombre = $codigoFila ? $codigoFila['nombre'] : $registro['nombre'];
             $rol = $codigoFila ? $codigoFila['rol'] : 'admin';
+            $punto = $codigoFila ? $codigoFila['punto'] : 'ambas';
 
             // La cuenta y la marca de código usado se guardan juntas: si otra
             // persona alcanzó a usar el mismo código un instante antes, no se
             // crea nada.
             $conn->begin_transaction();
-            $usuario = registrarUsuario($conn, $nombre, $registro['cedula'], $contrasena, $rol);
+            $usuario = registrarUsuario($conn, $nombre, $registro['cedula'], $contrasena, $rol, $punto);
             if ($codigoFila && !marcarCodigoUsado($conn, $codigoFila['id'], $usuario['id'])) {
                 $conn->rollback();
                 $errores['codigo'] = 'Este código ya se usó. Cada código sirve para crear una sola cuenta.';
             } else {
                 $conn->commit();
-                iniciarTurno($conn, $usuario, 'ambas');
+                iniciarTurno($conn, $usuario, $evento['id'] ?? 0);
                 header('Location: ' . paginaInicioRol());
                 exit;
             }
@@ -100,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Si el código escrito (o el del enlace) está disponible, se saluda a la
-// persona por su nombre.
+// persona por su nombre y se le dice qué va a poder hacer.
 $codigoInfo = null;
 if (!$primeraCuenta && $registro['codigo'] !== '') {
     $fila = buscarCodigoPorteria($conn, normalizarCodigo($registro['codigo']));
@@ -108,22 +139,15 @@ if (!$primeraCuenta && $registro['codigo'] !== '') {
         $codigoInfo = $fila;
     }
 }
-$estado = estadoHorario($horario);
+$permisos = puntosControl();
 
-/** Opciones del selector de punto de control, con la elegida marcada. */
-function opcionesPunto(array $puntos, $elegido) {
-    foreach ($puntos as $valor => $texto) {
-        echo '<option value="' . h($valor) . '"' . ($valor === $elegido ? ' selected' : '') . '>' . h($texto) . '</option>';
-    }
-}
-
-function errorCampo(array $errores, $campo) {
+function opcionErrorCampo(array $errores, $campo) {
     if (!empty($errores[$campo])) {
         echo '<div class="field-error">' . h($errores[$campo]) . '</div>';
     }
 }
 
-$tituloPagina = 'Control de ingreso · ' . $evento;
+$tituloPagina = 'Control de ingreso · ' . $nombreEvento;
 require __DIR__ . '/includes/head.php';
 ?>
 <body>
@@ -133,32 +157,54 @@ require __DIR__ . '/includes/head.php';
       <span class="brand-divider" aria-hidden="true"></span>
       <div class="brand-text">
         <h1>Control de ingreso</h1>
-        <span class="event-name"><?= h($evento) ?></span>
+        <span class="event-name"><?= h($nombreEvento) ?></span>
       </div>
     </div>
-    <a class="topbar-link" href="ingreso.php">¿Vienes al evento? Regístrate aquí →</a>
+    <?php if ($mostrarEvento): ?>
+      <a class="topbar-link" href="ingreso.php">¿Vienes al evento? Regístrate aquí →</a>
+    <?php endif; ?>
   </header>
 
   <main class="content"><div class="content-inner wide">
+    <?php if ($aviso): ?>
+      <div class="banner <?= $aviso[0] ?>" style="max-width:1100px;margin:0 auto 18px;"><?= h($aviso[1]) ?></div>
+    <?php endif; ?>
+
     <div class="inicio-grid">
       <section class="inicio-intro">
         <span class="eyebrow-verde">SENA · Portería del evento</span>
         <h2 class="inicio-titulo">Control de entrada y salida</h2>
         <p class="inicio-lead">
-          Aquí se registra quién entra y quién sale de <strong><?= h($evento) ?></strong>.
-          Cada asistente tiene un código QR; en la portería se escanea para marcar su entrada
-          y su salida, y cada registro queda a nombre del portero que lo hizo.
+          <?php if ($mostrarEvento): ?>
+            Aquí se registra quién entra y quién sale de <strong><?= h($nombreEvento) ?></strong>.
+            Cada asistente tiene un código QR; en la portería se escanea para marcar su entrada
+            y su salida, y cada registro queda a nombre del portero que lo hizo.
+          <?php else: ?>
+            Aquí se registra quién entra y quién sale de los eventos del SENA. Cada asistente tiene
+            un código QR; en la portería se escanea para marcar su entrada y su salida, y cada
+            registro queda a nombre del portero que lo hizo.
+          <?php endif; ?>
         </p>
 
-        <div class="inicio-evento">
-          <div>
-            <span class="horario-etiqueta">Fecha y horario</span>
-            <strong><?= horarioConfigurado($horario) ? h(textoHorario($horario)) : 'Por definir' ?></strong>
+        <?php if ($mostrarEvento): ?>
+          <div class="inicio-evento">
+            <div>
+              <span class="horario-etiqueta">Fecha y horario</span>
+              <strong><?= horarioConfigurado($horario) ? h(textoHorario($horario)) : 'Por definir' ?></strong>
+            </div>
+            <?php if (horarioConfigurado($horario)): ?>
+              <span class="status-chip <?= $estadoIngreso['abierto'] ? 'in' : 'out' ?>"><?= $estadoIngreso['abierto'] ? 'Ingreso abierto' : 'Ingreso cerrado' ?></span>
+            <?php endif; ?>
           </div>
-          <?php if (horarioConfigurado($horario)): ?>
-            <span class="status-chip <?= $estado['abierto'] ? 'in' : 'out' ?>"><?= $estado['abierto'] ? 'Ingreso abierto' : 'Ingreso cerrado' ?></span>
-          <?php endif; ?>
-        </div>
+        <?php else: ?>
+          <div class="inicio-evento">
+            <div>
+              <span class="horario-etiqueta">Evento</span>
+              <strong>No hay ningún evento activo</strong>
+            </div>
+            <span class="status-chip neutro">El administrador debe crear uno</span>
+          </div>
+        <?php endif; ?>
 
         <ul class="inicio-pasos">
           <li>
@@ -172,14 +218,14 @@ require __DIR__ . '/includes/head.php';
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6"/><path d="M16 11l2 2 4-4"/></svg>
             <div>
               <strong>Control en portería, desde el celular</strong>
-              <span>Los porteros escanean el QR con la cámara del celular; cada entrada y salida queda con la hora y el portero que la registró.</span>
+              <span>Cada portero ve solo lo que le toca — entrada, salida o ambas — y escanea el QR con la cámara.</span>
             </div>
           </li>
           <li>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg>
             <div>
-              <strong>Estadísticas y exportes</strong>
-              <span>El administrador ve gráficos de asistencia y descarga en Excel o PDF la lista de invitados, quiénes asistieron y cada entrada y salida.</span>
+              <strong>Un historial por evento</strong>
+              <span>El administrador abre y cierra eventos; al cerrarlos, su historial queda archivado y se puede descargar en Excel o PDF.</span>
             </div>
           </li>
         </ul>
@@ -193,12 +239,13 @@ require __DIR__ . '/includes/head.php';
 
         <div id="panelIngreso" role="tabpanel"<?= $modo === 'ingreso' ? '' : ' hidden' ?>>
           <h3 class="acceso-titulo">Ingreso del personal</h3>
-          <p class="section-sub">Entra con tu cédula y tu contraseña. Si estás en la portería, elige tu punto de control.</p>
+          <p class="section-sub">Entra con tu cédula y tu contraseña. Lo que puedes registrar (entrada, salida o ambas) ya viene con tu cuenta.</p>
           <?php if (!empty($errores['ingreso'])): ?>
             <div class="banner error"><?= h($errores['ingreso']) ?></div>
           <?php endif; ?>
           <form method="post" novalidate>
             <input type="hidden" name="accion" value="ingresar">
+            <input type="hidden" name="destino" value="<?= h($destino) ?>">
             <div class="form-grid una-columna">
               <div>
                 <label for="ing_cedula">Cédula</label>
@@ -207,10 +254,6 @@ require __DIR__ . '/includes/head.php';
               <div>
                 <label for="ing_contrasena">Contraseña</label>
                 <input type="password" id="ing_contrasena" name="contrasena" autocomplete="current-password">
-              </div>
-              <div>
-                <label for="ing_punto">Punto de control</label>
-                <select id="ing_punto" name="punto"><?php opcionesPunto($puntos, $ingreso['punto']); ?></select>
               </div>
             </div>
             <div class="form-actions">
@@ -222,7 +265,12 @@ require __DIR__ . '/includes/head.php';
         <div id="panelRegistro" role="tabpanel"<?= $modo === 'registro' ? '' : ' hidden' ?>>
           <h3 class="acceso-titulo">Crear mi cuenta</h3>
           <?php if ($codigoInfo): ?>
-            <p class="section-sub">Hola <strong><?= h($codigoInfo['nombre']) ?></strong>: tu código es para <?= $codigoInfo['rol'] === 'admin' ? 'administrador del evento' : 'la portería' ?>. Solo escribe tu cédula y una contraseña.</p>
+            <p class="section-sub">
+              Hola <strong><?= h($codigoInfo['nombre']) ?></strong>: tu código es para
+              <?= $codigoInfo['rol'] === 'admin' ? 'administrador del evento' : 'la portería' ?>
+              (<?= h(mb_strtolower($permisos[$codigoInfo['punto']] ?? 'entrada y salida')) ?>).
+              Solo escribe tu cédula y una contraseña.
+            </p>
           <?php else: ?>
             <p class="section-sub">Escribe tu cédula, una contraseña y el código que te llegó al correo.</p>
           <?php endif; ?>
@@ -236,28 +284,28 @@ require __DIR__ . '/includes/head.php';
                 <div class="full">
                   <label for="reg_nombre">Nombre completo</label>
                   <input type="text" id="reg_nombre" name="nombre" autocomplete="name" value="<?= h($registro['nombre']) ?>">
-                  <?php errorCampo($errores, 'nombre'); ?>
+                  <?php opcionErrorCampo($errores, 'nombre'); ?>
                 </div>
               <?php endif; ?>
               <div class="full">
                 <label for="reg_cedula">Cédula</label>
                 <input type="text" id="reg_cedula" name="cedula" inputmode="numeric" autocomplete="username" value="<?= h($registro['cedula']) ?>">
-                <?php errorCampo($errores, 'cedula'); ?>
+                <?php opcionErrorCampo($errores, 'cedula'); ?>
               </div>
               <div>
                 <label for="reg_contrasena">Contraseña</label>
                 <input type="password" id="reg_contrasena" name="contrasena" autocomplete="new-password">
-                <?php errorCampo($errores, 'contrasena'); ?>
+                <?php opcionErrorCampo($errores, 'contrasena'); ?>
               </div>
               <div>
                 <label for="reg_confirmar">Repite la contraseña</label>
                 <input type="password" id="reg_confirmar" name="confirmar" autocomplete="new-password">
-                <?php errorCampo($errores, 'confirmar'); ?>
+                <?php opcionErrorCampo($errores, 'confirmar'); ?>
               </div>
               <div class="full">
                 <label for="reg_codigo">Código de registro</label>
                 <input type="text" id="reg_codigo" name="codigo" class="input-codigo" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX" value="<?= h($registro['codigo']) ?>">
-                <?php errorCampo($errores, 'codigo'); ?>
+                <?php opcionErrorCampo($errores, 'codigo'); ?>
               </div>
             </div>
             <div class="form-actions">
@@ -269,6 +317,7 @@ require __DIR__ . '/includes/head.php';
     </div>
   </div></main>
   <?php require __DIR__ . '/includes/footer.php'; ?>
+  <?php if ($alerta) { require __DIR__ . '/includes/alerta.php'; } ?>
   <script src="assets/js/app.js?v=<?= assetVersion('assets/js/app.js') ?>"></script>
 </body>
 </html>

@@ -5,10 +5,14 @@
  * existe, manda directo a tarjeta.php (misma vista que ve quien se acaba
  * de registrar, con su QR y el botón para imprimir/guardar).
  */
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/publico.php';
 
-$evento = nombreEvento($conn);
+// Sin evento activo no hay registro de asistentes ni tarjetas.
+if (!$eventoActual) {
+    require __DIR__ . '/includes/sin_evento.php';
+    exit;
+}
+
 $error = '';
 $cedulaEnviada = '';
 

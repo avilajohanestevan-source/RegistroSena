@@ -4,11 +4,15 @@
  * autorregistro.php: cualquier asistente la abre desde su celular, se
  * registra y ve al instante su propia tarjeta con su código QR.
  */
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/publico.php';
 require_once __DIR__ . '/includes/mailer.php';
 
-$evento = nombreEvento($conn);
+// Sin evento activo no hay registro de asistentes ni tarjetas.
+if (!$eventoActual) {
+    require __DIR__ . '/includes/sin_evento.php';
+    exit;
+}
+
 $valores = [];
 $errores = [];
 
@@ -16,10 +20,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     [$valores, $errores] = validarRegistro($conn, $_POST);
 
     if (!$errores) {
-        [$ok, $mensaje] = registrarAsistente($conn, $valores);
+        [$ok, $mensaje, $qrReutilizado] = registrarAsistente($conn, $valores);
         if ($ok) {
             [$correoOk] = enviarCorreoTarjeta($valores, $evento);
-            header('Location: tarjeta.php?cedula=' . urlencode($valores['cedula']) . '&panel=0&correo=' . ($correoOk ? '1' : '0'));
+            header('Location: tarjeta.php?cedula=' . urlencode($valores['cedula']) . '&panel=0&correo=' . ($correoOk ? '1' : '0') . ($qrReutilizado ? '&qr=reutilizado' : ''));
             exit;
         }
         $errores['general'] = $mensaje;

@@ -88,16 +88,19 @@ function validarCodigoPorteria(mysqli $conn, $codigo, $cedula) {
     return [$fila, ''];
 }
 
-/** $rol: el que tendrá la cuenta que se cree con el código ('portero' o 'admin'). */
-function crearCodigoPorteria(mysqli $conn, $nombre, $correo, $cedula, $rol, $creadoPor) {
+/**
+ * $rol: el que tendrá la cuenta que se cree con el código ('portero' o
+ * 'admin'). $punto: qué podrá registrar ('entrada', 'salida' o 'ambas').
+ */
+function crearCodigoPorteria(mysqli $conn, $nombre, $correo, $cedula, $rol, $punto, $creadoPor) {
     do {
         $codigo = generarCodigo();
     } while (buscarCodigoPorteria($conn, $codigo));
 
     $stmt = $conn->prepare(
-        "INSERT INTO codigos_porteria (codigo, nombre, correo, cedula, rol, creado_por) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO codigos_porteria (codigo, nombre, correo, cedula, rol, punto, creado_por) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->bind_param('sssssi', $codigo, $nombre, $correo, $cedula, $rol, $creadoPor);
+    $stmt->bind_param('ssssssi', $codigo, $nombre, $correo, $cedula, $rol, $punto, $creadoPor);
     $stmt->execute();
     $id = $stmt->insert_id;
     $stmt->close();
@@ -146,7 +149,7 @@ function listarCodigosPorteria(mysqli $conn) {
 
 function listarPorteros(mysqli $conn) {
     return $conn->query(
-        "SELECT u.id, u.nombre, u.cedula, u.rol, u.creado_en,
+        "SELECT u.id, u.nombre, u.cedula, u.rol, u.punto, u.creado_en,
                 (SELECT MAX(t.inicio) FROM turnos t WHERE t.usuario_id = u.id) AS ultimo_turno,
                 (SELECT COUNT(*) FROM turnos t WHERE t.usuario_id = u.id) AS turnos
          FROM usuarios u

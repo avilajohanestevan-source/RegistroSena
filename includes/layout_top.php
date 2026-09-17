@@ -14,6 +14,8 @@ $wide = $wide ?? false;
 $horarioBarra = horarioEvento($conn);
 $estadoBarra = horarioConfigurado($horarioBarra) ? estadoHorario($horarioBarra) : null;
 $usuarioSesion = usuarioActual();
+$eventoBarra = eventoContextoFila($conn);
+$eventoArchivado = $eventoBarra && $eventoBarra['estado'] !== 'activo';
 $esAdminSesion = esAdmin();
 $pestanas = $esAdminSesion ? [
     'control'       => ['control.php', 'Control de acceso'],
@@ -24,7 +26,7 @@ $pestanas = $esAdminSesion ? [
     'autorregistro' => ['autorregistro.php', 'Autorregistro'],
     'registro'      => ['registro_admin.php', 'Registro'],
     'porteria'      => ['porteria.php', 'Portería'],
-    'evento'        => ['evento.php', 'Evento'],
+    'evento'        => ['evento.php', 'Eventos'],
 ] : [
     'control'       => ['control.php', 'Control de acceso'],
 ];
@@ -47,9 +49,9 @@ require __DIR__ . '/head.php';
           <?php if ($estadoBarra): ?>
             <span class="pill <?= $estadoBarra['abierto'] ? 'abierto' : 'cerrado' ?>" title="<?= h(textoHorario($horarioBarra)) ?>"><span class="dot"></span><?= $estadoBarra['abierto'] ? 'Ingreso abierto' : 'Ingreso cerrado' ?></span>
           <?php endif; ?>
-          <span class="pill in"><span class="dot"></span>Dentro <span class="num"><?= $conteo['dentro'] ?></span></span>
-          <span class="pill out"><span class="dot"></span>Fuera <span class="num"><?= $conteo['fuera'] ?></span></span>
-          <span class="pill total"><span class="dot"></span>Registrados <span class="num"><?= $conteo['total'] ?></span></span>
+          <span class="pill in"><span class="dot"></span>Dentro <span class="num" data-pulso-dentro><?= $conteo['dentro'] ?></span></span>
+          <span class="pill out"><span class="dot"></span>Fuera <span class="num" data-pulso-fuera><?= $conteo['fuera'] ?></span></span>
+          <span class="pill total"><span class="dot"></span>Registrados <span class="num" data-pulso-total><?= $conteo['total'] ?></span></span>
         </div>
         <div class="sesion">
           <div class="sesion-datos">
@@ -64,9 +66,12 @@ require __DIR__ . '/head.php';
       <nav class="tabs">
         <?php /* Nombres propios para no pisar variables de la página (p. ej. $url en autorregistro.php). */ ?>
         <?php foreach ($pestanas as $clavePestana => [$archivoPestana, $textoPestana]): ?>
-          <a class="tab-btn<?= $activeTab === $clavePestana ? ' active' : '' ?>" href="<?= $archivoPestana ?>"><?= $textoPestana ?></a>
+          <a class="tab-btn<?= $activeTab === $clavePestana ? ' active' : '' ?>" href="<?= $archivoPestana ?><?= $eventoArchivado ? '?evento=' . (int) $eventoBarra['id'] : '' ?>"><?= $textoPestana ?></a>
         <?php endforeach; ?>
       </nav>
     <?php endif; ?>
   </div>
   <main class="content"><div class="content-inner<?= $wide ? ' wide' : '' ?>">
+    <?php if ($eventoArchivado): ?>
+      <div class="banner info">Estás viendo el evento archivado <strong><?= h($eventoBarra['nombre']) ?></strong>: los datos son solo de consulta. <a href="evento.php">Volver a los eventos</a></div>
+    <?php endif; ?>

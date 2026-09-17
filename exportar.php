@@ -3,11 +3,15 @@
  * Exportes del administrador para el rango elegido en Estadísticas (como
  * en TaxSync: PhpSpreadsheet para Excel y Dompdf para PDF).
  *   ?formato=xlsx                  → libro con las hojas Resumen, Invitados,
- *                                    Asistencia, Movimientos e Intentos fallidos
+ *                                    Asistencia, Entradas y salidas, Movimientos e Intentos fallidos
  *   ?formato=pdf&lista=invitados   → todos los registrados y si asistieron
- *   ?formato=pdf&lista=asistencia  → quienes asistieron, con cada entrada y salida
- *   ?formato=pdf&lista=movimientos → todas las entradas y salidas en orden,
- *                                    con quién las registró
+ *   ?formato=pdf&lista=asistencia  → el Detalle de asistencia tal como se ve
+ *                                    en pantalla (visitas con colores)
+ *   ?formato=pdf&lista=visitas     → una fila por visita: quién, cuándo entró
+ *                                    y cuándo salió
+ * &modo=vista muestra el archivo en el navegador (la vista previa de
+ * estadisticas.php: el PDF tal cual, o el Excel convertido a HTML con sus
+ * hojas); &modo=descarga lo descarga.
  * Las librerías se instalan con Composer (carpeta vendor/, ver README).
  */
 require_once __DIR__ . '/includes/panel_admin.php';
@@ -23,6 +27,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\Html as EscritorHtml;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /* ---------------------------- Excel ---------------------------- */
@@ -87,6 +92,8 @@ function tablaHoja(Worksheet $hoja, array $encabezados, array $filas, $filaEncab
 
     $hoja->getStyle('A' . $filaEncabezado . ':' . $ultima . ($fila - 1))->getBorders()->getAllBorders()
         ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('DDE5D8');
+    $hoja->getStyle('A' . ($filaEncabezado + 1) . ':' . $ultima . ($fila - 1))->getAlignment()
+        ->setVertical(Alignment::VERTICAL_TOP);
     for ($i = 1; $i <= count($encabezados); $i++) {
         $hoja->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setAutoSize(true);
     }
@@ -105,11 +112,22 @@ function columnaAncha(Worksheet $hoja, $columna, $ancho, $desdeFila, $hastaFila)
     $hoja->getStyle($columna . $desdeFila . ':' . $columna . $hastaFila)->getAlignment()->setWrapText(true);
 }
 
-function fechaExcel($fecha) {
-    return $fecha ? date('d/m/Y H:i', strtotime($fecha)) : '—';
+/** Pinta la columna de estado: rojo si falta la entrada o la salida, verde si sigue adentro. */
+function colorearEstados(Worksheet $hoja, $columna, $desdeFila, $hastaFila) {
+    $colores = ['Sin salida' => 'B3261E', 'Sin entrada' => 'B3261E', 'Sigue adentro' => '007832'];
+    for ($fila = $desdeFila; $fila <= $hastaFila; $fila++) {
+        $estado = (string) $hoja->getCell($columna . $fila)->getValue();
+        if (isset($colores[$estado])) {
+            $hoja->getStyle($columna . $fila)->getFont()->setBold(true)->getColor()->setRGB($colores[$estado]);
+        }
+    }
 }
 
-function exportarExcel(array $d) {
+function fechaExcel($fecha) {
+    return $fecha ? date('d/m/Y g:i A', strtotime($fecha)) : '—';
+}
+
+function construirLibro(array $d) {
     $libro = new Spreadsheet();
     $libro->getProperties()->setCreator('Control de ingreso SENA')->setTitle('Asistencia · ' . $d['evento']);
     $subtitulo = $d['evento'] . ' · ' . $d['rango'] . ' · Generado: ' . $d['generado'];
@@ -150,7 +168,7 @@ function exportarExcel(array $d) {
     }
     tablaHoja($hoja, ['NOMBRE', 'TIPO', 'CÉDULA', 'CORREO', 'TELÉFONO', 'EMPRESA', 'REGISTRADO', '¿ASISTIÓ?', 'ENTRADAS', 'SALIDAS'], $filas);
 
-    // Asistencia: quienes vinieron, con cada entrada y salida.
+    // Asistencia: quienes vinieron, con cada visita en su propia línea.
     $hoja = $libro->createSheet();
     $hoja->setTitle('Asistencia');
     tituloHoja($hoja, 'ASISTENCIA CON ENTRADAS Y SALIDAS', $subtitulo, 'K');
@@ -159,11 +177,28 @@ function exportarExcel(array $d) {
         $filas[] = [
             $p['nombre'], tipoAsistente($p['tipo'], $p['tipo_otro']), $p['cedula'], $p['empresa'] !== '' ? $p['empresa'] : '—',
             fechaExcel($p['primera_entrada']), fechaExcel($p['ultima_salida']), $p['entradas'], $p['salidas'],
-            fmtDuracion($p['segundos_dentro']), $p['sin_salida'] ? 'No' : 'Sí', secuenciaTexto($p['movimientos'], $d['variosDias']),
+            fmtDuracion($p['segundos_dentro']), $p['sin_salida'] ? 'No' : 'Sí', visitasTexto($p['pares'], $d['variosDias']),
         ];
     }
-    $fin = tablaHoja($hoja, ['NOMBRE', 'TIPO', 'CÉDULA', 'EMPRESA', 'PRIMERA ENTRADA', 'ÚLTIMA SALIDA', 'ENTRADAS', 'SALIDAS', 'TIEMPO ADENTRO', '¿SALIDA REGISTRADA?', 'ENTRADAS (E) Y SALIDAS (S)'], $filas);
-    columnaAncha($hoja, 'K', 60, 5, $fin - 1);
+    $fin = tablaHoja($hoja, ['NOMBRE', 'TIPO', 'CÉDULA', 'EMPRESA', 'PRIMERA ENTRADA', 'ÚLTIMA SALIDA', 'ENTRADAS', 'SALIDAS', 'TIEMPO ADENTRO', '¿SALIDA REGISTRADA?', 'VISITAS (ENTRADA → SALIDA)'], $filas);
+    columnaAncha($hoja, 'K', 42, 5, $fin - 1);
+
+    // Entradas y salidas: una fila por visita (entró → salió), como se ve
+    // en el Detalle de asistencia de la pantalla.
+    $hoja = $libro->createSheet();
+    $hoja->setTitle('Entradas y salidas');
+    tituloHoja($hoja, 'ENTRADAS Y SALIDAS POR VISITA', $subtitulo, 'J');
+    $filas = [];
+    foreach ($d['visitas'] as $v) {
+        $filas[] = [
+            $v['nombre'], tipoAsistente($v['tipo'], $v['tipo_otro']), $v['cedula'], fmtDia($v['dia']), $v['numero'],
+            $v['entrada'] ? date('H:i', strtotime($v['entrada']['fecha'])) : '—',
+            $v['salida'] ? date('H:i', strtotime($v['salida']['fecha'])) : '—',
+            fmtDuracion($v['segundos']), $v['estado'], $v['portero'] ?? '—',
+        ];
+    }
+    $fin = tablaHoja($hoja, ['NOMBRE', 'TIPO', 'CÉDULA', 'DÍA', 'VISITA N.°', 'ENTRÓ', 'SALIÓ', 'TIEMPO', 'ESTADO', 'REGISTRÓ'], $filas);
+    colorearEstados($hoja, 'I', 5, $fin - 1);
 
     // Movimientos: cada entrada y salida, con el número de vez de esa persona.
     $hoja = $libro->createSheet();
@@ -190,6 +225,54 @@ function exportarExcel(array $d) {
     columnaAncha($hoja, 'E', 70, 5, $fin - 1);
 
     $libro->setActiveSheetIndex(0);
+    return $libro;
+}
+
+/**
+ * Vista previa del Excel: el mismo libro convertido a HTML por
+ * PhpSpreadsheet, con las hojas como pestañas (se ve una a la vez) y la
+ * letra y los colores del SENA.
+ */
+function vistaPreviaExcel(Spreadsheet $libro) {
+    $agregado = '<style>
+        body { margin: 0; padding: 0 16px 24px; background: #fff; font-family: "Work Sans", Calibri, Arial, sans-serif; }
+        ul.navigation { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; list-style: none;
+            margin: 0 -16px 14px; padding: 10px 16px; background: #F4F9F0; border-bottom: 1px solid #DDE5D8; }
+        ul.navigation a { display: block; padding: 7px 14px; border: 1px solid #CBD6C4; border-radius: 8px; background: #fff;
+            color: #1B1B1B; font-size: 13px; font-weight: 600; text-decoration: none; }
+        ul.navigation a.activa { background: #39A900; border-color: #39A900; color: #fff; }
+        table.oculta { display: none !important; }
+        table.gridlines td { border-color: #EEF1ED; }
+    </style>
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var enlaces = [].slice.call(document.querySelectorAll("ul.navigation a"));
+        function mostrar(id) {
+            document.querySelectorAll("table[id^=sheet]").forEach(function (t) { t.classList.toggle("oculta", t.id !== id); });
+            enlaces.forEach(function (a) { a.classList.toggle("activa", a.getAttribute("href") === "#" + id); });
+        }
+        enlaces.forEach(function (a) {
+            a.addEventListener("click", function (e) { e.preventDefault(); mostrar(a.getAttribute("href").slice(1)); });
+        });
+        if (enlaces.length) mostrar("sheet0");
+    });
+    </script>';
+
+    $escritor = new EscritorHtml($libro);
+    $escritor->writeAllSheets();
+    $escritor->setEditHtmlCallback(function ($html) use ($agregado) {
+        return str_replace('</head>', $agregado . '</head>', $html);
+    });
+    header('Content-Type: text/html; charset=utf-8');
+    echo $escritor->generateHtmlAll();
+    exit;
+}
+
+function exportarExcel(array $d, $modo) {
+    $libro = construirLibro($d);
+    if ($modo === 'vista') {
+        vistaPreviaExcel($libro);
+    }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="' . $d['archivo'] . '.xlsx"');
     header('Cache-Control: max-age=0');
@@ -199,7 +282,7 @@ function exportarExcel(array $d) {
 
 /* ----------------------------- PDF ----------------------------- */
 
-/** Documento con encabezado (logo SENA, título, evento y rango) y pie con el número de página. */
+/** Documento con encabezado (logo SENA, título, evento y rango) y pie. */
 function documentoPdf($titulo, array $d, $cuerpo) {
     $logo = 'data:image/png;base64,' . base64_encode(file_get_contents(__DIR__ . '/img/sena-logo-verde.png'));
     return '<html><head><meta charset="UTF-8"><style>
@@ -258,27 +341,70 @@ function tablaPdf(array $encabezados, array $filas) {
     return '<table class="datos"><thead><tr>' . $th . '</tr></thead><tbody>' . $cuerpo . '</tbody></table>';
 }
 
-function exportarPdf($lista, array $d) {
+/**
+ * Etiqueta de color de una entrada o una salida, como en la pantalla. Los
+ * colores van en el propio elemento para que no se los pise el fondo de
+ * las filas alternas.
+ */
+function etiquetaPdf($texto, $fondo, $color) {
+    return '<td style="background:' . $fondo . ';color:' . $color . ';padding:2px 6px;border-radius:3px;'
+        . 'font-weight:bold;font-size:8px;white-space:nowrap;border:none;">' . h($texto) . '</td>';
+}
+
+/**
+ * Las visitas de una persona igual que en el Detalle de asistencia: una
+ * fila por visita (entrada → salida y cuánto duró) y, entre una y otra del
+ * mismo día, el descanso. Lo que falta sale en rojo.
+ */
+function visitasTablaPdf(array $pares, $conFecha, $sigueAdentro) {
+    $filas = '';
+    $anterior = null;
+    $ultima = count($pares) - 1;
+    foreach ($pares as $i => $p) {
+        if ($anterior && $anterior['salida'] && $p['entrada']
+            && substr($anterior['salida']['fecha'], 0, 10) === substr($p['entrada']['fecha'], 0, 10)) {
+            $pausa = strtotime($p['entrada']['fecha']) - strtotime($anterior['salida']['fecha']);
+            $filas .= '<tr><td colspan="4" style="border:none;padding:1px 0 1px 10px;color:#5B6660;font-size:7.5px;">Descanso de '
+                . h(fmtDuracion($pausa)) . '</td></tr>';
+        }
+        $filas .= '<tr>';
+        $filas .= $p['entrada']
+            ? etiquetaPdf('Entrada ' . horaMovimiento($p['entrada']['fecha'], $conFecha), '#E4F4DA', '#007832')
+            : etiquetaPdf('Sin entrada', '#FBE6E4', '#B3261E');
+        $filas .= '<td style="border:none;padding:0 6px;color:#5B6660;">&rarr;</td>';
+        if ($p['salida']) {
+            $filas .= etiquetaPdf('Salida ' . horaMovimiento($p['salida']['fecha'], $conFecha), '#FFF4CC', '#8A5E00');
+        } elseif ($i === $ultima && $sigueAdentro) {
+            $filas .= etiquetaPdf('Sigue adentro', '#39A900', '#FFFFFF');
+        } else {
+            $filas .= etiquetaPdf('Sin salida', '#FBE6E4', '#B3261E');
+        }
+        $filas .= '<td style="border:none;padding-left:8px;color:#5B6660;font-size:8px;">'
+            . ($p['segundos'] > 0 ? h(fmtDuracion($p['segundos'])) : '') . '</td>';
+        $filas .= '</tr>';
+        $anterior = $p;
+    }
+    return '<table style="border-collapse:separate;border-spacing:0 2px;">' . $filas . '</table>';
+}
+
+function exportarPdf($lista, array $d, $modo) {
     $r = $d['resumen'];
     $orientacion = 'portrait';
 
     if ($lista === 'asistencia') {
-        $titulo = 'Asistencia con entradas y salidas';
+        // La misma tabla del Detalle de asistencia de la pantalla.
+        $titulo = 'Detalle de asistencia';
         $orientacion = 'landscape';
         $filas = [];
         foreach ($d['asistentes'] as $i => $p) {
-            $secuencia = array_map(function ($s) {
-                return '<span class="' . ($s['tipo'] === 'entrada' ? 'e' : 's') . '">' . $s['letra'] . '</span> ' . h($s['hora']);
-            }, secuenciaMovimientos($p['movimientos'], $d['variosDias']));
             $filas[] = '<tr>'
                 . '<td>' . ($i + 1) . '</td>'
                 . '<td>' . h($p['nombre']) . '<br><span class="muted">C.C. ' . h($p['cedula']) . '</span></td>'
                 . '<td>' . h(tipoAsistente($p['tipo'], $p['tipo_otro'])) . '</td>'
-                . '<td>' . h(fechaExcel($p['primera_entrada'])) . '</td>'
-                . '<td>' . h(fechaExcel($p['ultima_salida'])) . '</td>'
-                . '<td>' . $p['entradas'] . ' / ' . $p['salidas'] . '</td>'
-                . '<td>' . h(fmtDuracion($p['segundos_dentro'])) . '</td>'
-                . '<td>' . implode(' &middot; ', $secuencia) . ($p['sin_salida'] ? ' <span class="alerta">(sin salida)</span>' : '') . '</td>'
+                . '<td>' . visitasTablaPdf($p['pares'], $d['variosDias'], $p['sigue_adentro']) . '</td>'
+                . '<td><strong>' . h(fmtDuracion($p['segundos_dentro'])) . '</strong><br><span class="muted">'
+                . $p['entradas'] . ' entrada' . ($p['entradas'] === 1 ? '' : 's') . ' &middot; '
+                . $p['salidas'] . ' salida' . ($p['salidas'] === 1 ? '' : 's') . '</span></td>'
                 . '</tr>';
         }
         $cuerpo = indicadoresPdf([
@@ -286,29 +412,38 @@ function exportarPdf($lista, array $d) {
             [$r['reingresaron'], 'Entraron más de una vez'],
             [$r['sin_salida'], 'Sin salida registrada'],
             [fmtDuracion($r['promedio_dentro']), 'Tiempo promedio adentro'],
-        ]) . tablaPdf(['#', 'Nombre', 'Tipo', 'Primera entrada', 'Última salida', 'Entradas / salidas', 'Tiempo adentro', 'Entradas (E) y salidas (S)'], $filas);
-    } elseif ($lista === 'movimientos') {
+        ]) . tablaPdf(['#', 'Invitado', 'Tipo', 'Entradas y salidas', 'Tiempo adentro'], $filas);
+    } elseif ($lista === 'visitas' || $lista === 'movimientos') {
+        // Una fila por visita: quién, cuándo entró y cuándo salió.
+        $lista = 'visitas';
         $titulo = 'Entradas y salidas';
+        $orientacion = 'landscape';
+        $clases = ['Completa' => 'muted', 'Sin salida' => 'alerta', 'Sin entrada' => 'alerta', 'Sigue adentro' => 'si'];
         $filas = [];
-        foreach ($d['movimientos'] as $m) {
-            $esEntrada = $m['tipo'] === 'entrada';
+        foreach ($d['visitas'] as $i => $v) {
             $filas[] = '<tr>'
-                . '<td>' . h(fechaExcel($m['fecha'])) . '</td>'
-                . '<td><span class="' . ($esEntrada ? 'e' : 's') . '">' . ($esEntrada ? 'Entrada' : 'Salida') . '</span>'
-                . ($m['vez'] > 1 ? ' <span class="muted">(' . $m['vez'] . '.ª vez)</span>' : '') . '</td>'
-                . '<td>' . h($m['nombre']) . '</td>'
-                . '<td>' . h($m['cedula']) . '</td>'
-                . '<td>' . h(tipoAsistente($m['tipo_asistente'], $m['tipo_otro'])) . '</td>'
-                . '<td>' . h($m['portero'] ?? '—') . '</td>'
+                . '<td>' . ($i + 1) . '</td>'
+                . '<td>' . h($v['nombre']) . '<br><span class="muted">C.C. ' . h($v['cedula']) . '</span></td>'
+                . '<td>' . h(tipoAsistente($v['tipo'], $v['tipo_otro'])) . '</td>'
+                . '<td>' . h(fmtDia($v['dia'])) . '</td>'
+                . '<td>' . $v['numero'] . '</td>'
+                . '<td>' . ($v['entrada'] ? '<span class="e">' . h(date('H:i', strtotime($v['entrada']['fecha']))) . '</span>' : '<span class="alerta">sin entrada</span>') . '</td>'
+                . '<td>' . ($v['salida'] ? '<span class="s">' . h(date('H:i', strtotime($v['salida']['fecha']))) . '</span>' : '<span class="alerta">sin salida</span>') . '</td>'
+                . '<td>' . h(fmtDuracion($v['segundos'])) . '</td>'
+                . '<td><span class="' . $clases[$v['estado']] . '">' . h($v['estado']) . '</span></td>'
+                . '<td>' . h($v['portero'] ?? '—') . '</td>'
                 . '</tr>';
         }
+        $completas = count(array_filter($d['visitas'], function ($v) { return $v['estado'] === 'Completa'; }));
         $cuerpo = indicadoresPdf([
-            [$r['entradas'], 'Entradas'],
-            [$r['salidas'], 'Salidas'],
-            [$r['intentos_fallidos'], 'Intentos fallidos'],
-        ]) . tablaPdf(['Fecha y hora', 'Movimiento', 'Nombre', 'Cédula', 'Tipo', 'Registró'], $filas);
+            [count($d['visitas']), 'Visitas (entró y salió)'],
+            [$completas, 'Visitas completas'],
+            [count($d['visitas']) - $completas, 'Sin entrada o sin salida'],
+            [$r['reingresaron'], 'Entraron más de una vez'],
+        ]) . tablaPdf(['#', 'Invitado', 'Tipo', 'Día', 'Visita', 'Entró', 'Salió', 'Tiempo', 'Estado', 'Registró'], $filas);
     } else {
         $titulo = 'Lista de invitados';
+        $lista = 'invitados';
         $filas = [];
         $n = 0;
         foreach ($d['personas'] as $p) {
@@ -328,7 +463,6 @@ function exportarPdf($lista, array $d) {
             [$r['asistieron'], 'Asistieron'],
             [$r['no_asistieron'], 'No asistieron'],
         ]) . tablaPdf(['#', 'Nombre', 'Tipo', 'Cédula', 'Empresa', '¿Asistió?', 'Entradas'], $filas);
-        $lista = 'invitados';
     }
 
     $opciones = new Options();
@@ -346,12 +480,14 @@ function exportarPdf($lista, array $d) {
     $ancho = $metricas->getTextWidth('Página 00 de 00', $fuente, 6);
     $lienzo->page_text($lienzo->get_width() - 24 - $ancho, $lienzo->get_height() - 34, 'Página {PAGE_NUM} de {PAGE_COUNT}', $fuente, 6, [0.357, 0.4, 0.376]);
 
-    $dompdf->stream($d['archivo'] . '_' . $lista . '.pdf', ['Attachment' => false]);
+    // En la vista previa el PDF se muestra en el navegador; al descargar, se guarda.
+    $dompdf->stream($d['archivo'] . '_' . $lista . '.pdf', ['Attachment' => $modo === 'descarga']);
     exit;
 }
 
 /* --------------------------- Datos --------------------------- */
 
+$eventoConsulta = fijarEventoConsulta($conn, $_GET['evento'] ?? null);
 $horario = horarioEvento($conn);
 [$desde, $hasta] = rangoEstadisticas($conn, $horario, $_GET['desde'] ?? '', $_GET['hasta'] ?? '');
 $movimientos = movimientosEnRango($conn, $desde, $hasta);
@@ -377,16 +513,18 @@ $datos = [
     'personas'    => $personas,
     'asistentes'  => $asistentes,
     'movimientos' => $movimientos,
+    'visitas'     => visitasPlanas($personas),
     'avisos'      => $avisos,
     'variosDias'  => $desde !== $hasta,
-    'archivo'     => 'asistencia_' . $desde . ($desde !== $hasta ? '_a_' . $hasta : ''),
+    'archivo'     => nombreArchivoExporte($desde, $hasta),
 ];
 
 $formato = $_GET['formato'] ?? '';
+$modo = $_GET['modo'] ?? '';
 if ($formato === 'xlsx') {
-    exportarExcel($datos);
+    exportarExcel($datos, $modo);
 } elseif ($formato === 'pdf') {
-    exportarPdf($_GET['lista'] ?? 'invitados', $datos);
+    exportarPdf($_GET['lista'] ?? 'invitados', $datos, $modo);
 }
 header('Location: estadisticas.php');
 exit;

@@ -14,11 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     [$valores, $errores] = validarRegistro($conn, $_POST);
 
     if (!$errores) {
-        [$ok, $mensaje] = registrarAsistente($conn, $valores);
+        [$ok, $mensaje, $qrReutilizado] = registrarAsistente($conn, $valores);
         if ($ok) {
             $eventoActual = nombreEvento($conn);
             [$correoOk] = enviarCorreoTarjeta($valores, $eventoActual);
-            header('Location: tarjeta.php?cedula=' . urlencode($valores['cedula']) . '&correo=' . ($correoOk ? '1' : '0'));
+            header('Location: tarjeta.php?cedula=' . urlencode($valores['cedula']) . '&correo=' . ($correoOk ? '1' : '0') . ($qrReutilizado ? '&qr=reutilizado' : ''));
             exit;
         }
         $errores['general'] = $mensaje;

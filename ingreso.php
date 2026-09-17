@@ -5,10 +5,14 @@
  * cualquiera que lo escanee llega aquí primero y elige si quiere
  * registrarse por primera vez, o consultar la tarjeta que ya tiene.
  */
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/publico.php';
 
-$evento = nombreEvento($conn);
+// Sin evento activo no hay registro de asistentes ni tarjetas.
+if (!$eventoActual) {
+    require __DIR__ . '/includes/sin_evento.php';
+    exit;
+}
+
 $horario = horarioEvento($conn);
 $tituloPagina = 'Control de entrada · ' . $evento;
 $subtitulo = 'Control de entrada';

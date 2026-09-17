@@ -99,9 +99,71 @@ function plantillaCorreo($etiqueta, $evento, $contenido, $cidLogo) {
 }
 
 /**
+ * Filas del correo con el resumen del cronograma (ver
+ * cronogramaParaCorreo()): cada día con sus actividades y el enlace a la
+ * vista completa. Devuelve '' si no hay cronograma.
+ */
+function bloqueCronogramaCorreo($cronograma) {
+    if (!$cronograma) {
+        return '';
+    }
+    $html = '
+        <tr>
+          <td style="padding:6px 20px 4px;">
+            <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;color:#007832;border-top:1px solid #DDE5D8;padding-top:16px;">Cronograma</div>
+          </td>
+        </tr>';
+    foreach ($cronograma['dias'] as $dia) {
+        $filas = '';
+        foreach ($dia['items'] as $item) {
+            $detalle = array_filter([$item['descripcion'], $item['ubicacion'] !== '' ? 'Lugar: ' . $item['ubicacion'] : '', $item['responsable'] !== '' ? 'A cargo de: ' . $item['responsable'] : '']);
+            $filas .= '
+              <tr>
+                <td valign="top" style="padding:6px 10px 6px 0;font-family:monospace;font-size:12.5px;color:#00304D;white-space:nowrap;">' . h(fmtHora12($item['hora_inicio'])) . '<br><span style="color:#5B6660;">' . h(fmtHora12($item['hora_fin'])) . '</span></td>
+                <td valign="top" style="padding:6px 0;border-left:3px solid #39A900;padding-left:10px;">
+                  <div style="font-size:14px;font-weight:bold;color:#1B1B1B;">' . h($item['titulo']) . '</div>
+                  ' . ($detalle ? '<div style="font-size:12.5px;color:#5B6660;margin-top:2px;">' . h(implode(' · ', $detalle)) . '</div>' : '') . '
+                </td>
+              </tr>';
+        }
+        $html .= '
+        <tr>
+          <td style="padding:6px 20px 8px;">
+            <div style="font-size:13px;font-weight:bold;color:#00304D;margin-bottom:4px;">' . h($dia['etiqueta']) . '</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $filas . '</table>
+          </td>
+        </tr>';
+    }
+    $mas = $cronograma['faltan'] > 0 ? ' (y ' . $cronograma['faltan'] . ' días más)' : '';
+    $html .= '
+        <tr>
+          <td style="padding:6px 20px 20px;text-align:center;">
+            <a href="' . h($cronograma['url']) . '" style="color:#007832;font-weight:bold;font-size:13.5px;">Ver el cronograma completo' . h($mas) . '</a>
+          </td>
+        </tr>';
+    return $html;
+}
+
+/** El cronograma en texto plano, para la versión sin HTML del correo. */
+function textoCronogramaCorreo($cronograma) {
+    if (!$cronograma) {
+        return '';
+    }
+    $texto = "\n\nCRONOGRAMA\n";
+    foreach ($cronograma['dias'] as $dia) {
+        $texto .= "\n" . $dia['etiqueta'] . "\n";
+        foreach ($dia['items'] as $item) {
+            $texto .= '- ' . fmtHora12($item['hora_inicio']) . ' a ' . fmtHora12($item['hora_fin']) . ': ' . $item['titulo']
+                . ($item['ubicacion'] !== '' ? ' (' . $item['ubicacion'] . ')' : '') . "\n";
+        }
+    }
+    return $texto . "\nCronograma completo: " . $cronograma['url'];
+}
+
+/**
  * Correo con la tarjeta de ingreso (una versión sencilla de la tarjeta).
  */
-function plantillaCorreoTarjeta(array $asistente, $evento, $cidQr, $cidLogo = null) {
+function plantillaCorreoTarjeta(array $asistente, $evento, $cidQr, $cidLogo = null, $cronograma = null) {
     $empresa = trim($asistente['empresa'] ?? '');
     $tipo = !empty($asistente['tipo']) ? tipoAsistente($asistente['tipo'], $asistente['tipo_otro'] ?? '') : '';
 
@@ -123,7 +185,7 @@ function plantillaCorreoTarjeta(array $asistente, $evento, $cidQr, $cidLogo = nu
           <td style="border-top:1px dashed #DDE5D8;padding:14px 20px;font-size:12px;color:#5B6660;text-align:center;">
             Presenta este código QR (o esta tarjeta impresa) en la entrada y la salida del evento.
           </td>
-        </tr>';
+        </tr>' . bloqueCronogramaCorreo($cronograma);
 
     return plantillaCorreo('Tarjeta de ingreso', $evento, $contenido, $cidLogo);
 }
@@ -225,7 +287,9 @@ function enviarCorreoTarjeta(array $asistente, $evento) {
         return [false, 'Este asistente no tiene un correo registrado.'];
     }
 
-    $qrTexto = textoQR($asistente['cedula'], $asistente['nombre']);
+    global $conn;
+    // El mismo QR de siempre de la persona.
+    $qrTexto = qrGuardado($conn, $asistente['cedula'], $asistente['nombre']);
     $qrPng = generarQrPng($qrTexto);
 
     try {
@@ -239,11 +303,13 @@ function enviarCorreoTarjeta(array $asistente, $evento) {
         }
         $cidLogo = incrustarLogo($mail);
 
-        $mail->Body = plantillaCorreoTarjeta($asistente, $evento, $qrPng ? $cidQr : null, $cidLogo);
+        $cronograma = cronogramaParaCorreo($conn, eventoContextoFila($conn));
+        $mail->Body = plantillaCorreoTarjeta($asistente, $evento, $qrPng ? $cidQr : null, $cidLogo, $cronograma);
         $mail->AltBody = "Hola " . $asistente['nombre'] . ",\n\n" .
             "Quedaste registrado para " . $evento . ".\n" .
             "Cedula: " . $asistente['cedula'] . "\n" .
-            "Presenta el codigo QR de tu tarjeta en la entrada y la salida del evento.";
+            "Presenta el codigo QR de tu tarjeta en la entrada y la salida del evento." .
+            textoCronogramaCorreo($cronograma);
 
         $mail->send();
         return [true, ''];
@@ -291,6 +357,75 @@ function enviarAvisos(array $personas, $evento, $asunto, $mensaje) {
             $resultados[$p['cedula']] = [true, ''];
         } catch (Exception $e) {
             $resultados[$p['cedula']] = [false, 'No se pudo enviar: ' . $mail->ErrorInfo];
+        }
+    }
+    $mail->smtpClose();
+    return $resultados;
+}
+
+/**
+ * Correo de invitación a un evento nuevo, con el enlace para confirmar o
+ * rechazar. Le recuerda a la persona que su código QR de siempre le
+ * sirve apenas confirme (ver includes/invitaciones.php).
+ */
+function plantillaCorreoInvitacion(array $invitacion, $evento, $horario, $url, $cidLogo = null, $cronograma = null) {
+    $contenido = '
+        <tr>
+          <td style="padding:26px 24px 6px;font-size:15px;line-height:1.6;color:#1B1B1B;">
+            Hola ' . h($invitacion['nombre']) . ':<br><br>
+            Te invitamos a <strong>' . h($evento) . '</strong>' . ($horario !== '' ? ' (' . h($horario) . ')' : '') . '.
+            Como ya estuviste en un evento del SENA no tienes que registrarte de nuevo: solo confirma tu asistencia
+            y tu <strong>mismo código QR</strong> te sirve para entrar y salir.
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 24px 26px;text-align:center;">
+            <a href="' . h($url) . '" style="display:inline-block;background:#39A900;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:9px;">Confirmar mi asistencia</a>
+            <p style="font-size:12.5px;color:#5B6660;margin:16px 0 0;">Si no vas a poder asistir, en esa misma página puedes decirlo.</p>
+          </td>
+        </tr>' . bloqueCronogramaCorreo($cronograma);
+    return plantillaCorreo('Invitación', $evento, $contenido, $cidLogo);
+}
+
+/**
+ * Envía las invitaciones de un evento usando una sola conexión SMTP.
+ * $cronograma: el del evento nuevo (cronogramaParaCorreo()) o null para no incluirlo.
+ * Devuelve [id de la invitación => [ok(bool), detalle(string)]].
+ */
+function enviarInvitaciones(array $invitaciones, $evento, $horario, $cronograma = null) {
+    $resultados = [];
+    if (!EMAIL_HABILITADO) {
+        foreach ($invitaciones as $inv) {
+            $resultados[$inv['id']] = [false, 'El envío de correo no está configurado.'];
+        }
+        return $resultados;
+    }
+
+    @set_time_limit(300);
+    $mail = crearMailer();
+    $mail->SMTPKeepAlive = true;
+    $cidLogo = incrustarLogo($mail);
+
+    foreach ($invitaciones as $inv) {
+        if (empty($inv['correo'])) {
+            $resultados[$inv['id']] = [false, 'No tiene correo registrado.'];
+            continue;
+        }
+        $mail->clearAddresses();
+        try {
+            $url = urlConfirmacion($inv);
+            $mail->addAddress($inv['correo'], $inv['nombre']);
+            $mail->Subject = 'Te invitamos a ' . $evento;
+            $mail->Body = plantillaCorreoInvitacion($inv, $evento, $horario, $url, $cidLogo, $cronograma);
+            $mail->AltBody = 'Hola ' . $inv['nombre'] . ":\n\n"
+                . 'Te invitamos a ' . $evento . ($horario !== '' ? ' (' . $horario . ')' : '') . ".\n"
+                . 'Confirma tu asistencia aquí: ' . $url . "\n\n"
+                . 'Tu mismo código QR te sirve para entrar y salir.'
+                . textoCronogramaCorreo($cronograma);
+            $mail->send();
+            $resultados[$inv['id']] = [true, ''];
+        } catch (Exception $e) {
+            $resultados[$inv['id']] = [false, 'No se pudo enviar: ' . $mail->ErrorInfo];
         }
     }
     $mail->smtpClose();

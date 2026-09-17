@@ -1,25 +1,25 @@
 <?php
 /**
- * Control de acceso: la pantalla principal de la portería. Arriba muestra
- * el horario del evento y si el ingreso está abierto; debajo, los
- * formularios de entrada y salida (según el punto de control que eligió
- * el portero al iniciar sesión) y quién está adentro / afuera. Cada
- * movimiento queda a nombre del portero con la sesión abierta. Fuera del
- * horario no se registran entradas (las salidas sí), y la página se
- * recarga sola cuando el ingreso abre o cierra.
- * Abajo, un reporte con los movimientos más recientes (el historial
- * completo, con búsqueda, sigue en historial.php).
+ * Control de acceso: la pantalla principal de la portería, dentro del
+ * evento activo. Arriba muestra el horario y si el ingreso está abierto;
+ * debajo, los formularios que le corresponden a la cuenta según su
+ * permiso (solo entrada, solo salida o ambas) y quién está adentro /
+ * afuera. Cada movimiento queda a nombre de quien tiene la sesión
+ * abierta. Fuera del horario no se registran entradas (las salidas sí), y
+ * los contadores se actualizan solos mientras la página está abierta.
  */
 require_once __DIR__ . '/includes/panel.php';
 
-$usuario = usuarioActual();
+$admin = esAdmin();
+$verEntrada = puedeRegistrar('entrada');
+$verSalida = puedeRegistrar('salida');
 $resultadoEntrada = null;
 $resultadoSalida = null;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $eventoActual) {
     $accion = $_POST['accion'] ?? '';
     $cedula = soloDigitos($_POST['cedula'] ?? '');
-    // Solo se registra lo que permite el punto de control de la sesión.
+    // Solo se registra lo que permite la cuenta.
     if ($cedula !== '' && in_array($accion, ['entrada', 'salida'], true) && puedeRegistrar($accion)) {
         $resultado = intentarMovimiento($conn, $cedula, $accion, $usuario['id']);
         if ($accion === 'entrada') {
@@ -30,26 +30,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$avisoAcceso = ($_GET['aviso'] ?? '') === 'solo_admin' ? 'Esa sección es solo para el administrador.' : '';
 $horario = horarioEvento($conn);
 $ingreso = estadoHorario($horario);
 $recargarEn = segundosHastaCambioHorario($horario);
 $bloqueoEntrada = $ingreso['abierto'] ? '' : ' disabled';
-$verEntrada = puedeRegistrar('entrada');
-$verSalida = puedeRegistrar('salida');
 
-$adentro = listarPorEstado($conn, 'dentro');
-$fuera = listarPorEstado($conn, 'fuera');
-$admin = esAdmin();
+$adentro = $eventoActual ? listarPorEstado($conn, 'dentro') : [];
+$fuera = $eventoActual ? listarPorEstado($conn, 'fuera') : [];
 // El administrador ve abajo el historial reciente y los avisos; el
 // portero, solo lo que él mismo registró hoy.
-$avisos = $admin ? listarAvisos($conn, 6) : [];
-$movimientos = $admin ? historialGeneral($conn, '', 50) : [];
-$misMovimientos = $admin ? [] : movimientosDePortero($conn, $usuario['id']);
+$avisos = $admin && $eventoActual ? listarAvisos($conn, 6) : [];
+$movimientos = $admin && $eventoActual ? historialGeneral($conn, '', 50) : [];
+$misMovimientos = !$admin && $eventoActual ? movimientosDePortero($conn, $usuario['id']) : [];
+$conteo = contarEstados($conn);
+$ultimoId = 0;
+if ($eventoActual) {
+    $fila = $conn->query("SELECT MAX(id) AS id FROM movimientos WHERE evento_id = " . (int) $eventoActual['id'])->fetch_assoc();
+    $ultimoId = (int) ($fila['id'] ?? 0);
+}
 
 $activeTab = 'control';
 $wide = true;
 require __DIR__ . '/includes/layout_top.php';
 ?>
+
+<?php if ($avisoAcceso): ?>
+  <div class="banner warning"><?= h($avisoAcceso) ?></div>
+<?php endif; ?>
+
+<?php if (!$eventoActual): ?>
+  <div class="card card--marca">
+    <h2 class="section-title">No hay ningún evento activo</h2>
+    <p class="section-sub">El control de entrada y salida funciona dentro de un evento. Mientras no haya uno activo no se pueden registrar entradas ni salidas, y el autorregistro está cerrado.</p>
+    <?php if ($admin): ?>
+      <div class="form-actions">
+        <a class="btn btn-primary" href="evento.php">Crear un evento</a>
+        <a class="btn btn-outline" href="evento.php">Ver los eventos archivados</a>
+      </div>
+    <?php else: ?>
+      <p class="field-hint">Pídele al administrador del evento que cree uno; apenas lo haga, esta pantalla queda lista.</p>
+    <?php endif; ?>
+  </div>
+<?php else: ?>
 
 <div class="horario-bar <?= $ingreso['abierto'] ? 'abierto' : 'cerrado' ?>"<?= $recargarEn ? ' data-recargar-en="' . $recargarEn . '"' : '' ?>>
   <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
@@ -58,18 +81,24 @@ require __DIR__ . '/includes/layout_top.php';
     <?php if (horarioConfigurado($horario)): ?>
       <strong><?= h(textoHorario($horario)) ?></strong>
     <?php else: ?>
-      <strong>Sin fecha ni horario definidos <a class="horario-link" href="evento.php">Configurar</a></strong>
+      <strong>Sin fecha ni horario definidos<?php if ($admin): ?> <a class="horario-link" href="evento.php">Configurar</a><?php endif; ?></strong>
     <?php endif; ?>
   </div>
   <div class="horario-estado">
     <?php if ($ingreso['abierto']): ?>
       <span class="status-chip in">Ingreso abierto</span>
-      <?php if ($horario['hora_fin'] !== ''): ?><span class="text-muted">Cierra a las <?= h($horario['hora_fin']) ?></span><?php endif; ?>
+      <?php if ($horario['hora_fin'] !== ''): ?><span class="text-muted">Cierra a las <?= h(fmtHora12($horario['hora_fin'])) ?></span><?php endif; ?>
     <?php else: ?>
       <span class="status-chip out">Ingreso cerrado</span>
       <span class="text-muted"><?= h(ucfirst($ingreso['motivo'])) ?></span>
     <?php endif; ?>
   </div>
+</div>
+
+<div class="pulso" data-pulso="pulso.php" data-pulso-ultimo="<?= $ultimoId ?>" hidden>
+  <span class="pulso-punto" aria-hidden="true"></span>
+  <span>Hay entradas o salidas nuevas registradas por otra persona.</span>
+  <button type="button" class="btn btn-primary btn-sm" onclick="location.href = location.pathname">Actualizar</button>
 </div>
 
 <div class="control-grid">
@@ -234,7 +263,7 @@ require __DIR__ . '/includes/layout_top.php';
 </div>
 
 <div class="card">
-  <h2 class="section-title" style="font-size:16px;">Avisos recientes</h2>
+  <h2 class="section-title" style="font-size:16px;">Irregularidades recientes</h2>
   <p class="section-sub">Intentos de entrada o salida que no se dejaron registrar porque no correspondían.</p>
   <div class="activity-feed">
     <?php if (!$avisos): ?>
@@ -260,7 +289,7 @@ require __DIR__ . '/includes/layout_top.php';
       <?php foreach ($misMovimientos as $m): ?>
         <div class="activity-row">
           <span class="who"><?= h($m['nombre']) ?> — <span class="<?= $m['tipo'] === 'entrada' ? 'type-in' : 'type-out' ?>"><?= $m['tipo'] === 'entrada' ? 'Entrada' : 'Salida' ?></span></span>
-          <span class="when"><?= date('H:i', strtotime($m['fecha'])) ?></span>
+          <span class="when"><?= date('g:i A', strtotime($m['fecha'])) ?></span>
         </div>
       <?php endforeach; ?>
     </div>
@@ -269,4 +298,5 @@ require __DIR__ . '/includes/layout_top.php';
 <?php endif; ?>
 
 <script src="assets/js/jsQR.js?v=<?= assetVersion('assets/js/jsQR.js') ?>"></script>
+<?php endif; ?>
 <?php require __DIR__ . '/includes/layout_bottom.php'; ?>
