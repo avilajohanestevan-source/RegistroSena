@@ -543,8 +543,19 @@ function fechaEnLetras($fecha) {
     return $diaTexto . ' del mes de ' . $meses[(int) date('n', $ts) - 1] . ' de ' . $anioTexto . ' (' . $anio . ')';
 }
 
+/** Emblema del diseño oficial si no se subió uno: el escudo de Colombia (img/escudo-colombia.png) o, si no está, el logo del SENA. */
+function emblemaPorDefecto() {
+    foreach (['escudo-colombia.png', 'escudo-colombia.jpg'] as $archivo) {
+        if (is_file(__DIR__ . '/../img/' . $archivo)) {
+            return __DIR__ . '/../img/' . $archivo;
+        }
+    }
+    return __DIR__ . '/../img/sena-logo-verde.png';
+}
+
 function imagenBase64($ruta) {
-    return 'data:image/png;base64,' . base64_encode(file_get_contents($ruta));
+    $mime = strtolower(pathinfo($ruta, PATHINFO_EXTENSION)) === 'jpg' ? 'image/jpeg' : 'image/png';
+    return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($ruta));
 }
 
 /** HTML de una página de certificado (carta horizontal) para Dompdf. */
@@ -561,7 +572,7 @@ function htmlCertificado(array $plantilla, array $certificado, array $evento) {
  * la fecha en letras, el bloque de firma digital y la verificación.
  */
 function htmlCertificadoOficial(array $plantilla, array $certificado, array $evento) {
-    $emblema = imagenCertificadoDataUri($plantilla['logo_archivo']) ?? imagenBase64(__DIR__ . '/../img/sena-logo-verde.png');
+    $emblema = imagenCertificadoDataUri($plantilla['logo_archivo']) ?? imagenBase64(emblemaPorDefecto());
     $marca = imagenBase64(__DIR__ . '/../img/sena-logo-gris.png');
     $firma = imagenCertificadoDataUri($plantilla['firma_archivo']);
     $firmante = trim($plantilla['firmante_nombre']) !== '' ? $plantilla['firmante_nombre'] : 'Director Académico';

@@ -256,14 +256,14 @@ require __DIR__ . '/includes/layout_top.php';
     <h2 class="section-title">Escudo o logo y color</h2>
     <div class="form-grid">
       <div>
-        <label for="logo">Escudo o logo superior <span class="opt">(por defecto el logo del SENA)</span></label>
+        <label for="logo">Escudo o logo superior <span class="opt">(por defecto el escudo de Colombia si está en img/, o el logo del SENA)</span></label>
         <div class="field-hint" style="margin-bottom:6px;">En el diseño oficial va centrado arriba, como el escudo de la República. PNG o JPG hasta 2 MB.</div>
         <input type="file" id="logo" name="logo" accept="image/png,image/jpeg">
         <?php if (!empty($errores['logo'])): ?><div class="field-error"><?= h($errores['logo']) ?></div><?php endif; ?>
         <div class="cert-logo-muestra">
-          <img src="<?= $logo ?: 'img/sena-logo-verde.png' ?>" alt="Logo actual">
+          <img src="<?= $logo ?: 'img/' . basename(emblemaPorDefecto()) ?>" alt="Logo actual">
           <?php if ($logo): ?>
-            <label class="check-linea"><input type="checkbox" name="quitar_logo" value="1"> Volver al logo del SENA</label>
+            <label class="check-linea"><input type="checkbox" name="quitar_logo" value="1"> Volver al emblema por defecto</label>
           <?php endif; ?>
         </div>
       </div>
