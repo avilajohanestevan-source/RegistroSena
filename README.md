@@ -424,7 +424,70 @@ Pestaña **Certificados** (solo administrador).
 - Cada certificado tiene un **código de verificación**; cualquiera puede
   comprobarlo en `certificado_verificar.php`.
 
-## 11. Cuando esto pase a la nube
+## 11. Asistencia y ambientes (solo front-end, con mocks)
+
+Módulo aparte en `ambientes/` para control de asistencia a clases y
+gestión de ambientes. Es **solo front-end**: no toca la base de datos. Las
+llamadas a la API las responde un servidor simulado en memoria (se reinicia
+al recargar la página) y los contratos que debe cumplir el backend real
+están en `ambientes/API.md`.
+
+Abrir: `http://localhost/sena-php/ambientes/index.html`. Usuarios de
+prueba (contraseña `Sena2026*`, también listados en el login):
+
+| Identificación | Rol |
+|---|---|
+| 1010101010 | Instructor |
+| 2020202020 | Administrativo |
+| 1122334455 | Aprendiz |
+| 3030303030 | Instructor con cuenta bloqueada (prueba de errores) |
+
+Flujo de prueba sin cámara: como instructor, "Generar QR" en la clase con
+ventana abierta; sal y entra como aprendiz y usa "Usar el último QR
+generado (demo)". También se puede subir una foto del QR o de la etiqueta
+de un activo (el detalle del activo muestra su código de barras).
+
+```
+ambientes/
+  index.html              Página única (enrutador por hash)
+  API.md                  Contratos de la API
+  css/ambientes.css       Estilos del módulo (sobre assets/css/style.css)
+  js/config.js            Modo mock, tiempos del QR y umbrales del semáforo
+  js/reglas.js            Reglas puras: ventana horaria, QR, semáforo, P004, daños
+  js/api/contratos.js     Funciones de la API que usan las vistas
+  js/api/cliente.js       fetch real o servidor simulado según CONFIG.usarMock
+  js/api/mock/            Datos de prueba y servidor simulado
+  js/ui/                  Componentes: escáner, cámara, toasts, modales, animaciones
+  js/vistas/              Login, instructor, administrativo, P004, aprendiz,
+                          inventario, daños e historial
+  tests/                  Pruebas (npm test)
+```
+
+**Librerías de front-end.** Se instalan con npm y se copian a
+`assets/vendor/` (que sí va en el repositorio, así no hace falta build ni
+CDN):
+
+```
+npm install      # descarga GSAP y ZXing en node_modules/
+npm run vendor   # copia las versiones minificadas a assets/vendor/
+npm test         # pruebas de reglas, mocks y códigos de barras
+```
+
+- **GSAP** (`assets/vendor/gsap/`): animaciones. Desde la versión 3.13
+  todos sus plugins son gratuitos, también para uso comercial: ScrollTrigger,
+  SplitText, MorphSVG, DrawSVG, MotionPath, Flip, Draggable, Inertia,
+  Physics2D, ScrambleText, CustomEase, etc. Todos quedan copiados; el módulo
+  carga por ahora el núcleo, CustomEase, DrawSVG y Flip, y todo el movimiento
+  pasa por `ambientes/js/ui/anim.js` (respeta "reducir movimiento").
+- **ZXing** (`assets/vendor/zxing/`): lectura de códigos de barras cuando
+  el navegador no trae `BarcodeDetector`. Los QR se siguen leyendo con
+  `jsQR`, igual que en portería.
+
+La cámara solo funciona en `localhost` o con HTTPS; desde el celular por
+IP de la red local hay que usar las alternativas (subir foto o escribir el
+código).
+
+## 12. Cuando esto pase a la nube
 
 Solo tendrías que:
 1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor),

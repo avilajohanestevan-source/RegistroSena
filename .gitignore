@@ -1,3 +1,6 @@
 # Librerías de Composer (PhpSpreadsheet, Dompdf): se instalan con `composer install`.
 /vendor/
 /uploads/
+
+# Dependencias de npm: se instalan con `npm install` y se copian con `npm run vendor`.
+/node_modules/
