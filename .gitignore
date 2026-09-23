@@ -1,0 +1,3 @@
+# Librerías de Composer (PhpSpreadsheet, Dompdf): se instalan con `composer install`.
+/vendor/
+/uploads/

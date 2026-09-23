@@ -5,6 +5,7 @@
  *   $valores      -> (opcional) lo que ya se escribió, ver validarRegistro()
  *   $errores      -> array asociativo campo => mensaje
  *   $textoBoton   -> texto del botón de enviar
+ *   $camposOcultos -> (opcional) [nombre => valor] que viajan con el formulario
  */
 $valores = ($valores ?? []) + [
     'nombre' => '', 'tipo' => '', 'tipo_otro' => '', 'cedula' => '',
@@ -14,6 +15,9 @@ $errores = $errores ?? [];
 $textoBoton = $textoBoton ?? 'Registrar';
 ?>
 <form method="post" novalidate>
+<?php foreach (($camposOcultos ?? []) as $campoOculto => $valorOculto): ?>
+  <input type="hidden" name="<?= h($campoOculto) ?>" value="<?= h($valorOculto) ?>">
+<?php endforeach; ?>
   <div class="form-grid">
     <div class="full">
       <label for="nombre">Nombre completo</label>

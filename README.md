@@ -52,6 +52,25 @@ includes/
   functions.php         Funciones de acceso a datos (registrar, buscar, listar...)
   auth.php              Sesión de portería: cuentas, turnos y punto de control
   panel.php             Arranque de las páginas del panel (exige sesión iniciada)
+  panel_admin.php       Arranque de las páginas que solo ve el administrador
+  eventos.php           Eventos: activo, archivados, métricas y contexto de consulta
+  publico.php           Arranque de las pantallas públicas (evento activo)
+  sin_evento.php        Pantalla pública cuando no hay evento activo
+  form_evento.php       Campos del evento (nombre, fechas y horario)
+  invitaciones.php      Invitaciones: crear, enviar, confirmar e inscribir
+  cronograma.php        Cronograma: días del evento, validación, cruces y copia entre días
+  cronograma_vista.php  Cronograma de solo lectura (tarjeta, confirmación, página pública)
+  cronograma_export.php Diseño del cronograma para descargar (PDF y PNG)
+  cronograma_descarga.php Botón y ventana "Descargar cronograma"
+  certificados.php      Certificados: plantilla, criterios de asistencia, lotes y PDF
+  vista_previa.php      Ventana de vista previa de archivos (PDF / Excel)
+  promocion.php         Imagen promocional, enlaces de invitación (token / público) y origen
+  tarjeta_promocional.php Tarjeta del evento en la página de registro y confirmación
+  invitar_evento.php    Botón "Invitar" del evento: por correo, enlace público o anteriores
+  facebook.php          Botón "Síguenos en Facebook" (SENA Villeta)
+  alerta.php            Alerta modal (avisos de sesión)
+  no_autorizado.php     Respuesta 401 cuando se entra por URL sin sesión
+  estadisticas.php      Cálculos de asistencia para estadísticas y exportes
   codigos_porteria.php  Códigos de registro de portería (crear, validar, usar, anular)
   mailer.php             Envío por correo de la tarjeta con QR (PHPMailer + SMTP)
   head.php               <head> compartido (favicon, tipografía Work Sans, estilos)
@@ -67,22 +86,46 @@ lib/
 assets/
   css/style.css           Estilos con los colores institucionales del SENA
   js/app.js                Dibuja los QR y maneja el escaneo por cámara
+  js/estadisticas.js       Gráficos de Estadísticas (amCharts 5)
   js/qrcode.min.js          Librería para generar códigos QR (vendida localmente)
   js/jsQR.js                 Librería para leer códigos QR desde la cámara
 img/
   Sena-Logo.png            Logo original (se conserva como referencia)
   sena-logo-verde.png      Logo en verde institucional #39A900 (favicon y marcas de agua)
   sena-logo-blanco.png     Logo en blanco / negativo (cabeceras, pie y tarjeta)
+  sena-logo-gris.png       Marca de agua gris del certificado oficial
+  escudo-colombia.jpg      Escudo de Colombia: emblema por defecto del certificado oficial
 
 index.php              Inicio: qué es el sistema + inicio de sesión / registro de portería
 salir.php              Cierra la sesión (y el turno) del portero
-porteria.php           Panel: códigos de registro de portería + porteros registrados
-evento.php             Panel: nombre, fecha y horario del evento / resumen
+porteria.php           Panel (admin): códigos de registro + cuentas del equipo
+estadisticas.php       Panel (admin): indicadores, gráficos amCharts y botones de exporte
+exportar.php           Panel (admin): Excel (PhpSpreadsheet) y PDF (Dompdf)
+composer.json          Librerías de Composer (PhpSpreadsheet, Dompdf) → carpeta vendor/
+evento.php             Panel (admin): evento activo (crear, editar, cerrar) + lista de eventos
+evento_resumen.php     Panel (admin): vista resumida de un evento archivado
+pulso.php              JSON con los contadores del evento (actualización en tiempo real)
+invitaciones.php       Panel (admin): invitar, borrar o restaurar asistentes de eventos anteriores
+migracion_personas.sql Directorio de personas, QR permanente y personas borradas de la lista
+cronograma.php         Panel (admin): cronograma por día (tabla y calendario)
+cronograma_ver.php     PÚBLICO: cronograma del evento activo, con selector de día
+migracion_cronograma.sql Tabla `cronograma` y modo del cronograma en `eventos`
+cronograma_descargar.php Cronograma en PDF (Dompdf) o PNG (GD) para imprimir
+certificados.php       Panel (admin): quién cumple, generar lotes, ZIP y envío por correo
+certificado_plantilla.php Panel (admin): texto, logo, firma electrónica, sello y color
+certificado_pdf.php    Panel (admin): PDF de un certificado, de un lote o vista previa; ZIP
+certificado_verificar.php PÚBLICO: verificar un certificado con su código
+migracion_certificados.sql Plantilla, lotes y certificados
+uploads/               Firma, logo e imágenes promocionales subidas (se crea solo; cerrado a la web; no va a git)
+evento_imagen.php      PÚBLICO: sirve la imagen promocional del evento (también para descargarla)
+migracion_promocion.sql Imagen promocional por evento; origen y apertura de las invitaciones
+confirmar.php           PÚBLICO: enlace del correo para confirmar o rechazar la invitación
 autorregistro.php      Panel: QR + enlace de autorregistro
 registro_admin.php     Panel: registrar manualmente a alguien
 entrada.php            Panel: registrar/escanear entradas + quién está adentro/afuera
 salida.php             Panel: registrar/escanear salidas + quién está adentro/afuera
-historial.php          Panel: historial general de entradas y salidas
+historial.php          Panel (admin): historial por invitado (visitas entrada → salida,
+                       descansos y línea de tiempo)
 reportes.php           Panel: reportes por día, sin salida + aviso por correo, CSV
 control.php            (en desuso) redirige a entrada.php por compatibilidad
 asistentes.php         Panel: listado y búsqueda de todos los asistentes
@@ -148,8 +191,9 @@ esto a un hosting.
 ## 6. Portería: inicio de sesión y turnos
 
 **Si ya tenías la base de datos creada**, importa en phpMyAdmin, en este
-orden: `migracion_reportes.sql`, `migracion_porteria.sql` y
-`migracion_codigos.sql`.
+orden: `migracion_reportes.sql`, `migracion_porteria.sql`,
+`migracion_codigos.sql`, `migracion_roles.sql`, `migracion_eventos.sql`,
+`migracion_invitaciones.sql`, `migracion_personas.sql`, `migracion_cronograma.sql`, `migracion_certificados.sql` y `migracion_promocion.sql`.
 
 - `index.php` es ahora la página de inicio: explica qué es el sistema y
   tiene **Iniciar sesión** y **Registrarme** para el personal de portería.
@@ -171,7 +215,160 @@ orden: `migracion_reportes.sql`, `migracion_porteria.sql` y
 - En el registro, cada asistente elige **qué es**: Aprendiz, Instructor,
   Funcionario, Visitante, Contratista u Otro (y escribe cuál).
 
-## 7. Fecha, horario y reportes
+## 7. Eventos (crear, cerrar y archivar)
+
+Cada **evento** es una unidad: sus asistentes, entradas y salidas,
+irregularidades y estadísticas viven dentro de él. Solo puede haber un
+evento **activo** a la vez, y todo el panel trabaja sobre ese evento.
+
+- **Crear** (pestaña *Eventos*): se abre un evento activo y el panel
+  arranca limpio, sin asistentes ni movimientos.
+- **Cerrar / archivar**: el evento pasa a *archivado* con todo su
+  historial guardado; el control de acceso y el autorregistro quedan
+  cerrados hasta que se cree otro.
+- **Vista resumida del archivo** (`evento_resumen.php`): de un evento
+  archivado se muestra lo esencial — métricas clave, lista de
+  asistentes, irregularidades y accesos a los reportes. Los datos
+  completos siguen en la base y el administrador los consulta o los
+  descarga (las páginas de estadísticas, historial, reportes y
+  asistentes aceptan `?evento=ID`).
+- **Sin evento activo**: el index no muestra la sección del evento, el
+  portal público avisa que no hay evento y el control de acceso invita
+  al administrador a crear uno.
+- **En tiempo real**: mientras el evento está activo, los contadores de
+  la barra superior se actualizan solos (cada 12 s, ver `pulso.php`) y
+  el control avisa cuando otra persona registra una entrada o salida.
+- **Invitar a los asistentes de eventos anteriores** (pestaña *Eventos* →
+  *Invitar asistentes anteriores*, o apenas se crea el evento): se elige
+  a quién invitar (todos o manual, con búsqueda) y a cada persona le
+  llega un correo con un **enlace único**. Al confirmar queda inscrita en
+  el evento nuevo con su misma cédula, así que **su código QR de siempre
+  le sirve**; también puede responder que no asistirá. El administrador
+  ve el estado de cada invitación (pendiente, confirmado, no asistirá),
+  puede reenviarlas y tiene el botón *Añadir confirmados al evento* para
+  inscribir en lote.
+- **Borrar invitados anteriores**: desde la misma página se borra a una
+  persona de la lista (*Borrar*, o *Borrar seleccionados*) y se eliminan
+  invitaciones que aún no se convirtieron en inscripción. Los eventos
+  archivados conservan todos sus datos; las personas borradas se pueden
+  *Restaurar*.
+- **El QR es de la persona, no del evento** (tabla `codigos_qr`): se crea
+  en su primer registro. Las tarjetas de un evento archivado muestran los
+  datos pero no el QR, y si la persona se vuelve a registrar en otro
+  evento recibe exactamente el mismo código (y sale sola de la lista de
+  borrados).
+- **Borrar eventos**: los eventos archivados tienen el botón *Borrar* en la
+  lista de eventos (el activo hay que cerrarlo primero). Se borra su
+  historial (entradas, salidas, avisos, turnos e invitaciones), pero **los
+  asistentes no se pierden**: sus datos quedan en el directorio `personas`
+  y su QR en `codigos_qr`, así que siguen en la lista para invitarlos a
+  próximos eventos. Conviene descargar antes el Excel del evento.
+- **Cronograma por día** (*Eventos* → *Cronograma*, y se abre solo al crear
+  un evento): cada actividad tiene título, descripción corta, hora de
+  inicio y fin, y ubicación y responsable opcionales. En eventos de varios
+  días se elige el modo (también al crear el evento):
+  *Mismo horario para todos los días* (se arma una vez y se usa *Guardar y
+  aplicar a todos los días*) u *Horarios por día* (una pestaña por día; se
+  puede copiar un día a otros). Si la hora de inicio no es anterior a la de
+  fin no se guarda; si dos actividades del mismo día se cruzan, se advierte
+  y se puede *Guardar de todas formas*. Hay vista de tabla y de calendario.
+  Si cambian las fechas del evento, se quitan las actividades de los días
+  que ya no existen.
+- **El cronograma llega al asistente**: en el correo con el QR (el día de
+  hoy si el evento está en curso, o todos si aún no empieza), en las
+  invitaciones (el modal de *Invitar* tiene *Incluir cronograma* y
+  *Aplicar cronograma a todos los días*), en la página de confirmación y en
+  la tarjeta con el botón *Ver cronograma* (con selector de día). El
+  enlace público es `cronograma_ver.php`.
+- **Descargar cronograma** (en *Eventos*, *Cronograma*, el resumen de un
+  evento archivado y la página pública): PDF con una hoja por día o imagen
+  PNG, con letra grande, logo y colores del SENA, para imprimir y pegar en
+  la sede. Un día sale en hoja vertical; todos los días salen lado a lado,
+  cada día en su columna (hoja horizontal; si un día no cabe, continúa en la
+  siguiente hoja). Los invitados también lo descargan desde la página de la
+  invitación, desde su tarjeta con el QR y desde el enlace del correo.
+
+- **Imagen promocional del evento** (formulario del evento): PNG, JPG o SVG
+  de hasta 5 MB, con texto alternativo. Se usa en los correos de invitación
+  y re-invitación, en la página de registro, en el portal y en el
+  cronograma público, y se puede descargar para imprimirla o ponerla en las
+  pantallas de la sede. Opción: *en el correo y la página de registro*
+  (recomendado) o *solo en el correo*. Los archivos se sirven con
+  `evento_imagen.php`; los SVG con scripts o enlaces externos se rechazan.
+- **Invitar** (botón del evento activo): *por correo* (una persona por línea,
+  nombre y correo; a cada una le llega su enlace personal), *enlace público*
+  para copiar y compartir, o *re-invitar asistentes anteriores*, también con
+  la imagen. Todas las invitaciones se ven en *Invitaciones* con su origen.
+- **Acceso por correo vs. acceso directo**: el correo lleva
+  `registro.php?t=TOKEN`. Con token se muestra la versión personalizada
+  ("Hola, Nombre, estás invitado", la imagen aunque esté en *solo en el
+  correo*, y el formulario con su nombre y correo) y se guarda cuándo abrió
+  el enlace; al registrarse, la invitación queda inscrita. Si la persona ya
+  estuvo en otro evento, el mismo enlace la lleva a confirmar con su QR. El
+  enlace público es `registro.php?origen=enlace` y quien se registra por ahí
+  queda como invitación con origen `public_link`; `registro.php` a secas es
+  el acceso directo (el QR de la sede). En *Invitaciones* se ven los
+  totales: invitados por correo, cuántos abrieron su enlace, cuántos se
+  registraron y cuántos llegaron por el enlace público.
+- **Correo de invitación**: asunto "Estás invitado a … — Confirma tu
+  asistencia", tarjeta con la imagen (o una tarjeta con el logo si no hay
+  imagen o es SVG), botón *Regístrate aquí* con el enlace personal, *Ver
+  cronograma*, botón *Síguenos en Facebook* (SENA Villeta) y versión en
+  texto plano.
+## 8. Administrador, estadísticas y exportes
+
+Hay dos roles de cuenta:
+
+- **Administrador**: maneja todo el evento — fecha y horario (pestaña
+  *Evento*), códigos de registro (pestaña *Portería*), asistentes,
+  historial, reportes y **Estadísticas**. Al iniciar sesión llega a
+  Estadísticas. La primera cuenta del sistema es administrador, y en
+  *Portería* se pueden crear códigos de administrador para otras personas.
+- **Portero**: solo ve el **Control de acceso** (pensado para usarse desde
+  el celular: escanea el QR con la cámara) y la lista de lo que él mismo
+  registró hoy. Se registra con el código que le llega al correo, solo
+  con su cédula y una contraseña.
+- **Permiso de cada cuenta**: *solo entrada*, *solo salida* o *ambas*. Lo
+  asigna el administrador al crear el código (y lo puede cambiar después
+  en *Portería*); el control de acceso muestra únicamente el flujo que
+  le corresponde.
+- **Mensajes de sesión**: al cerrar sesión aparece una alerta con el
+  título "Sesión cerrada". Si alguien entra por URL a una página del
+  panel sin sesión, el sistema responde **401 (no autorizado)**, muestra
+  la alerta "Es necesario iniciar sesión para acceder" y lleva al inicio
+  de sesión (al entrar vuelve a la página que pedía). Si acababa de
+  cerrar sesión, el mensaje dice "La sesión ha sido cerrada, necesitas
+  volver a iniciar sesión".
+
+**Estadísticas** (`estadisticas.php`) muestra, para el rango de días que
+elijas, los indicadores del evento y gráficos hechos con **amCharts 5**
+(se cargan desde internet): cuántos asistieron y cuántos no, quién
+registró su salida, asistencia por tipo, intentos fallidos por motivo,
+entradas y salidas por hora y por día, cuántas veces entró cada persona y
+registros por portero. Debajo, cada asistente con todas sus entradas y
+salidas.
+
+Desde ahí mismo se exporta (`exportar.php`), igual que en TaxSync. Cada
+botón abre primero una **vista previa** del archivo (el PDF tal cual, o el
+Excel con sus hojas como pestañas) y desde ahí se descarga:
+
+- **Excel** (PhpSpreadsheet): un libro con las hojas *Resumen*,
+  *Invitados* (todos los registrados y si asistieron), *Asistencia*
+  (primera entrada, última salida, veces que entró y salió, tiempo
+  adentro y el detalle de cada entrada y salida), *Movimientos* (cada
+  entrada y salida, con el número de vez y quién la registró) e
+  *Intentos fallidos*.
+- **PDF** (Dompdf): el *Detalle de asistencia* tal como se ve en pantalla
+  (cada invitado con sus visitas, lo que falta en rojo), *Entradas y salidas*
+  (una fila por visita) y la *Lista de invitados*, con el logo del SENA.
+
+Las librerías se instalan con Composer, en la carpeta del proyecto:
+
+```
+composer install
+```
+
+## 9. Fecha, horario y reportes
 
 **Si ya tenías la base de datos creada**, importa `migracion_reportes.sql`
 en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
@@ -191,10 +388,47 @@ en phpMyAdmin (pestaña **Importar**) antes de usar esta parte.
   `{evento}` y `{hora_entrada}`) y das clic en *Enviar aviso*. Queda
   registrado si se envió o no, y a quién ya se le mandó aviso.
 
-## 8. Cuando esto pase a la nube
+## 10. Certificados de asistencia
+
+Pestaña **Certificados** (solo administrador).
+
+- **Diseño**: *Oficial* (por defecto, como los certificados del SENA: fondo
+  blanco, escudo o logo arriba, "Hace constar que", nombre y cédula, el
+  evento en grande, "En testimonio de lo anterior…" con la fecha en letras,
+  bloque "Firmado Digitalmente por", número y fecha de registro, texto de
+  verificación y marca de agua del SENA) o *Moderno* (marco de color y sello).
+  En el oficial se editan la entidad, la mención legal, el texto bajo el
+  escudo, la ciudad y el centro y la regional del firmante. Para usar el
+  escudo de la República, súbelo como imagen superior.
+- **Plantilla única** (*Editar plantilla y firma*): título, texto de la
+  certificación para cada criterio (una línea por renglón; la línea
+  `{evento}` sola pone el nombre del evento en grande) con marcadores (`{nombre}`, `{cedula}`,
+  `{evento}`, `{fechas}`, `{dias_asistidos}`, `{total_dias}`, `{tipo}`,
+  `{charla}`, `{charla_horario}`), pie, logo (por defecto el del SENA),
+  color del marco y sello institucional.
+- **Firma electrónica**: nombre y cargo del firmante y archivo de la firma
+  (PNG/JPG, hasta 2 MB). Sin archivo, el certificado lleva de ejemplo el
+  nombre del firmante escrito; al subir la firma oficial del director se
+  usa en todos los certificados que se descarguen o envíen desde ese momento.
+  Los archivos quedan en `uploads/`, que no es accesible desde la web.
+- **Criterios**: *asistencia completa* (entró todos los días del evento),
+  *parcial* (un mínimo de días, sin llegar a todos) o *charla corta*
+  (estuvo presente un mínimo de minutos durante una actividad del
+  cronograma, según sus entradas y salidas).
+- **Roles**: se elige a qué tipos de asistente se emiten (aprendices,
+  instructores, funcionarios, visitantes, contratistas, otros).
+- El sistema muestra **quién cumple y quién no**, con vista previa de cada
+  certificado. *Generar certificados* crea un **lote** (no se repite un
+  certificado que la persona ya tenga), que se descarga en **ZIP**, en un
+  solo PDF para imprimir, o se **envía por correo** con el PDF adjunto.
+- Cada certificado tiene un **código de verificación**; cualquiera puede
+  comprobarlo en `certificado_verificar.php`.
+
+## 11. Cuando esto pase a la nube
 
 Solo tendrías que:
-1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor).
+1. Subir estos mismos archivos al hosting (por FTP o el panel del proveedor),
+   incluida la carpeta `vendor/` (o ejecutar `composer install` allá).
 2. Crear la base de datos allá e importar `database.sql`.
 3. Cambiar las 4 constantes de `config.php` por los datos que te dé el
    proveedor (host, usuario, contraseña, nombre de la base de datos).

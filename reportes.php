@@ -6,9 +6,12 @@
  * de acceso y registro de los correos enviados. Desde aquí también se
  * descargan en CSV los movimientos del día.
  */
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
 require_once __DIR__ . '/includes/mailer.php';
 
+// Se puede consultar un evento archivado con ?evento=ID.
+$eventoConsulta = fijarEventoConsulta($conn, $_GET['evento'] ?? null);
+$paramEvento = $eventoConsulta ? ['evento' => $eventoConsulta['id']] : [];
 $horario = horarioEvento($conn);
 $dia = $_GET['dia'] ?? ($_POST['dia'] ?? '');
 if (!esFechaValida($dia)) {
@@ -113,12 +116,13 @@ require __DIR__ . '/includes/layout_top.php';
     <?php if (horarioConfigurado($horario)): ?>Fecha del evento: <?= h(textoHorario($horario)) ?>.<?php endif; ?>
   </p>
   <form method="get" class="filtro-dia">
+    <?php foreach ($paramEvento as $clave => $valor): ?><input type="hidden" name="<?= h($clave) ?>" value="<?= h($valor) ?>"><?php endforeach; ?>
     <div>
       <label for="dia">Día del reporte</label>
       <input type="date" id="dia" name="dia" value="<?= h($dia) ?>">
     </div>
     <button type="submit" class="btn btn-primary">Ver reporte</button>
-    <a class="btn btn-outline" href="reportes.php?dia=<?= h($dia) ?>&amp;exportar=csv">Descargar movimientos (CSV)</a>
+    <a class="btn btn-outline" href="reportes.php?<?= h(http_build_query(['dia' => $dia, 'exportar' => 'csv'] + $paramEvento)) ?>">Descargar movimientos (CSV)</a>
   </form>
 </div>
 

@@ -1,5 +1,9 @@
 <?php
-require_once __DIR__ . '/includes/panel.php';
+require_once __DIR__ . '/includes/panel_admin.php';
+
+// Se puede consultar un evento archivado con ?evento=ID.
+$eventoConsulta = fijarEventoConsulta($conn, $_GET['evento'] ?? null);
+$paramEvento = $eventoConsulta ? ['evento' => $eventoConsulta['id']] : [];
 
 $busqueda = trim($_GET['q'] ?? '');
 $lista = listarAsistentes($conn, $busqueda);
@@ -12,6 +16,7 @@ require __DIR__ . '/includes/layout_top.php';
   <h2 class="section-title">Asistentes registrados</h2>
   <p class="section-sub">Busca por nombre, cédula, empresa o tipo de asistente.</p>
   <form method="get">
+    <?php foreach ($paramEvento as $clave => $valor): ?><input type="hidden" name="<?= h($clave) ?>" value="<?= h($valor) ?>"><?php endforeach; ?>
     <input type="search" name="q" placeholder="Buscar asistente…" value="<?= h($busqueda) ?>" style="max-width:320px;margin-bottom:16px;">
   </form>
   <?php if (!$lista): ?>
